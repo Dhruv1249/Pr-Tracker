@@ -1,0 +1,129 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+		"name": "PR Tracker AI Agent Test Collection",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Generate PR Review",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"content\": \"diff --git a/app.js b/app.js\\n@@ -1,3 +1,4 @@\\n const express = require('express');\\n+const cors = require('cors');\\n const app = express();\\n+app.use(cors());\\n\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:5001/api/ai/review",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "5001",
+					"path": [
+						"api",
+						"ai",
+						"review"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Assess PR Risk",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"content\": \"diff --git a/app.js b/app.js\\n@@ -1,3 +1,4 @@\\n const express = require('express');\\n+const cors = require('cors');\\n const app = express();\\n+app.use(cors({ origin: '*' }));\\n\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:5001/api/ai/risk",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "5001",
+					"path": [
+						"api",
+						"ai",
+						"risk"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Detect Security Vulnerabilities",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"content\": \"diff --git a/app.js b/app.js\\n@@ -1,3 +1,4 @@\\n const express = require('express');\\n+const cors = require('cors');\\n const app = express();\\n+eval(req.query.code);\\n\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:5001/api/ai/security",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "5001",
+					"path": [
+						"api",
+						"ai",
+						"security"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Interact with AI Agent",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"query\": \"Can you close PR with ID 12345?\",\n    \"context\": { \"repo\": \"my-project\" }\n}"
+				},
+				"url": {
+					"raw": "http://localhost:5001/api/ai/agent",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "5001",
+					"path": [
+						"api",
+						"ai",
+						"agent"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

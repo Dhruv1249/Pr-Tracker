@@ -1,3 +1,6 @@
-node_modules
-.env*
-.git
+node_modules/
+.env
+dist/
+build/
+*.log
+coverage/

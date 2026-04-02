@@ -1,0 +1,253 @@
+{
+  "info": {
+    "name": "PR Tracker MongoDB Service",
+    "description": "API endpoints for PR Tracker MongoDB Service",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"githubId\": 12345,\n  \"username\": \"testuser\",\n  \"email\": \"test@example.com\",\n  \"avatarUrl\": \"https://avatars.githubusercontent.com/u/12345\",\n  \"accessTokenEncrypted\": \"encrypted_token_here\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users"]
+            }
+          }
+        },
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users"]
+            }
+          }
+        },
+        {
+          "name": "Get User by GitHub ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/github/12345",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "github", "12345"]
+            }
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"updated@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/github/12345",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "github", "12345"]
+            }
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/github/12345",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "github", "12345"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Repositories",
+      "item": [
+        {
+          "name": "Create Repository",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"githubId\": 67890,\n  \"name\": \"test-repo\",\n  \"fullName\": \"testuser/test-repo\",\n  \"owner\": {\n    \"login\": \"testuser\",\n    \"githubId\": 12345,\n    \"avatarUrl\": \"https://avatars.githubusercontent.com/u/12345\"\n  },\n  \"description\": \"A test repository\",\n  \"url\": \"https://github.com/testuser/test-repo\",\n  \"private\": false,\n  \"language\": \"JavaScript\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/repositories",
+              "host": ["{{base_url}}"],
+              "path": ["api", "repositories"]
+            }
+          }
+        },
+        {
+          "name": "Get All Repositories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/repositories",
+              "host": ["{{base_url}}"],
+              "path": ["api", "repositories"]
+            }
+          }
+        },
+        {
+          "name": "Get Repositories by Owner",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/repositories/owner/testuser",
+              "host": ["{{base_url}}"],
+              "path": ["api", "repositories", "owner", "testuser"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pull Requests",
+      "item": [
+        {
+          "name": "Create Pull Request",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"githubId\": 111111,\n  \"number\": 1,\n  \"title\": \"Add new feature\",\n  \"description\": \"This PR adds a new feature\",\n  \"state\": \"open\",\n  \"author\": {\n    \"login\": \"testuser\",\n    \"githubId\": 12345,\n    \"avatarUrl\": \"https://avatars.githubusercontent.com/u/12345\"\n  },\n  \"repository\": \"repository_object_id_here\",\n  \"repositoryFullName\": \"testuser/test-repo\",\n  \"baseBranch\": \"main\",\n  \"headBranch\": \"feature-branch\",\n  \"url\": \"https://github.com/testuser/test-repo/pull/1\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/pullrequests",
+              "host": ["{{base_url}}"],
+              "path": ["api", "pullrequests"]
+            }
+          }
+        },
+        {
+          "name": "Get All Pull Requests",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/pullrequests",
+              "host": ["{{base_url}}"],
+              "path": ["api", "pullrequests"]
+            }
+          }
+        },
+        {
+          "name": "Get Pull Requests by State",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/pullrequests/state/open",
+              "host": ["{{base_url}}"],
+              "path": ["api", "pullrequests", "state", "open"]
+            }
+          }
+        },
+        {
+          "name": "Merge Pull Request",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/pullrequests/github/111111/merge",
+              "host": ["{{base_url}}"],
+              "path": ["api", "pullrequests", "github", "111111", "merge"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reviews",
+      "item": [
+        {
+          "name": "Create Review",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"githubId\": 222222,\n  \"pullRequest\": \"pullrequest_object_id_here\",\n  \"pullRequestNumber\": 1,\n  \"user\": {\n    \"login\": \"reviewer\",\n    \"githubId\": 54321,\n    \"avatarUrl\": \"https://avatars.githubusercontent.com/u/54321\"\n  },\n  \"state\": \"APPROVED\",\n  \"body\": \"Looks good to me!\",\n  \"submittedAt\": \"2024-01-01T00:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/reviews",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reviews"]
+            }
+          }
+        },
+        {
+          "name": "Get All Reviews",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/reviews",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reviews"]
+            }
+          }
+        },
+        {
+          "name": "Get Reviews by State",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/reviews/state/APPROVED",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reviews", "state", "APPROVED"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5003",
+      "type": "string"
+    }
+  ]
+}

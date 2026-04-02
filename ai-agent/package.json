@@ -1,0 +1,19 @@
+{
+  "name": "pr-tracker-ai-agent",
+  "version": "1.0.0",
+  "description": "AI agent for pr-tracker mern project",
+  "license": "ISC",
+  "author": "Dhruv",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "@mistralai/mistralai": "^1.14.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "nodemon": "^3.1.14"
+  }
+}
