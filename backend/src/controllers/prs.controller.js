@@ -17,7 +17,7 @@ exports.getPrDetails = async (req, res) => {
 // GET /api/prs/:prId/conflicts
 exports.checkConflicts = async (req, res) => {
     try {
-        const token = await resolveGithubToken(req);
+        const token = await resolveGithubToken(req, { required: true });
         const pr = await db.getPRById(req.params.prId, req);
         const repo = pr.repository;
         if (!repo) return res.status(404).json({ error: "Repo not found" });
@@ -37,7 +37,7 @@ exports.checkConflicts = async (req, res) => {
 // GET /api/prs/:prId/diff
 exports.getPrDiff = async (req, res) => {
     try {
-        const token = await resolveGithubToken(req);
+        const token = await resolveGithubToken(req, { required: true });
         const pr = await db.getPRById(req.params.prId, req);
         const repo = pr.repository;
         if (!repo) return res.status(404).json({ error: "Repo not found" });
@@ -54,7 +54,7 @@ exports.getPrDiff = async (req, res) => {
 // POST /api/prs/:prId/merge
 exports.mergePr = async (req, res) => {
     try {
-        const token = await resolveGithubToken(req);
+        const token = await resolveGithubToken(req, { required: true });
         const pr = await db.getPRById(req.params.prId, req);
         if (pr.state === "merged") return res.status(400).json({ error: "Already merged" });
         if (pr.state === "closed") return res.status(400).json({ error: "Cannot merge closed PR" });
@@ -75,7 +75,7 @@ exports.mergePr = async (req, res) => {
 // POST /api/prs/:prId/close
 exports.closePr = async (req, res) => {
     try {
-        const token = await resolveGithubToken(req);
+        const token = await resolveGithubToken(req, { required: true });
         const pr = await db.getPRById(req.params.prId, req);
         if (pr.state === "merged") return res.status(400).json({ error: "Cannot close merged PR" });
 
@@ -95,7 +95,7 @@ exports.closePr = async (req, res) => {
 // POST /api/prs/:prId/reopen
 exports.reopenPr = async (req, res) => {
     try {
-        const token = await resolveGithubToken(req);
+        const token = await resolveGithubToken(req, { required: true });
         const pr = await db.getPRById(req.params.prId, req);
         if (pr.state !== "closed") return res.status(400).json({ error: "Only closed PRs can be reopened" });
 
@@ -115,7 +115,7 @@ exports.reopenPr = async (req, res) => {
 // POST /api/prs/:prId/reviews
 exports.submitReview = async (req, res) => {
     try {
-        const token = await resolveGithubToken(req);
+        const token = await resolveGithubToken(req, { required: true });
         const pr = await db.getPRById(req.params.prId, req);
         const { decision, comment, reviewer } = req.body;
         const valid = ["approve", "request_changes", "comment"];
@@ -208,7 +208,7 @@ exports.removeTag = async (req, res) => {
 // POST /api/prs/:prId/analyze — Run AI analysis on a PR and store results
 exports.analyzePr = async (req, res) => {
     try {
-        const token = await resolveGithubToken(req);
+        const token = await resolveGithubToken(req, { required: true });
         const pr = await db.getPRById(req.params.prId, req);
         const repo = pr.repository;
         if (!repo) return res.status(404).json({ error: "Repo not found" });

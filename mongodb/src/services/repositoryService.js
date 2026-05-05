@@ -16,7 +16,7 @@ class RepositoryService {
 
   async findRepositoryByGithubId(githubId) {
     try {
-      return await Repository.findOne({ githubRepoId: githubId }).populate('users');
+      return await Repository.findOne({ githubId: Number(githubId) }).populate('users');
     } catch (error) {
       throw new Error(`Error finding repository: ${error.message}`);
     }
@@ -24,7 +24,18 @@ class RepositoryService {
 
   async findRepositoryById(id) {
     try {
-      return await Repository.findById(id).populate('users');
+      const mongoose = require('mongoose');
+      // If it looks like a valid MongoDB ObjectId, use findById.
+      // Otherwise treat it as a GitHub numeric repo ID and look up by githubId.
+      if (mongoose.Types.ObjectId.isValid(id) && String(id).length === 24) {
+        return await Repository.findById(id).populate('users');
+      }
+      // Fallback: numeric GitHub repo ID
+      const numericId = Number(id);
+      if (!Number.isFinite(numericId)) {
+        throw new Error(`Invalid repository id: ${id}`);
+      }
+      return await Repository.findOne({ githubId: numericId }).populate('users');
     } catch (error) {
       throw new Error(`Error finding repository: ${error.message}`);
     }

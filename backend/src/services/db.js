@@ -6,6 +6,7 @@
 const axios = require("axios");
 
 const PROXY = process.env.PROXY_URL;
+const INTERNAL_SECRET = process.env.INTERNAL_SECRET;
 
 const client = axios.create({
     baseURL: PROXY,
@@ -13,14 +14,20 @@ const client = axios.create({
 
 async function dbFetch(method, path, data, req) {
     try {
-        // Only forward auth-related headers, not the entire browser header set
-        // (forwarding host, content-length, origin etc. breaks service-to-service calls)
+        // Forward auth-related headers from the browser request (when available)
         const forwardHeaders = {};
         if (req?.headers?.authorization) {
             forwardHeaders.authorization = req.headers.authorization;
         }
         if (req?.headers?.cookie) {
             forwardHeaders.cookie = req.headers.cookie;
+        }
+
+        // Always attach the internal service secret so the gateway trusts
+        // calls from the backend container (e.g. webhook processing without a
+        // browser JWT). The gateway requires this for write operations.
+        if (INTERNAL_SECRET) {
+            forwardHeaders["x-internal-secret"] = INTERNAL_SECRET;
         }
 
         const config = {

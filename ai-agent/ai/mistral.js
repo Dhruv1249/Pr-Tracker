@@ -98,7 +98,7 @@ ${diff}`;
     }
 };
 
-const backendBaseUrl = process.env.CORE_SERVICE_URL || 'http://localhost:5005';
+const backendBaseUrl = process.env.CORE_SERVICE_URL || 'http://localhost:5002';
 
 export const agentChat = async (query, context = {}, authHeader) => {
     // Defines tools that correspond to the main backend API
@@ -272,12 +272,26 @@ export const agentChat = async (query, context = {}, authHeader) => {
         }
     ];
 
-    const systemPromptMessage = `You are a highly capable autonomous AI agent managing Github Pull Requests for a user.
-You HAVE direct access to GitHub through your provided tools. NEVER say you cannot access or manipulate GitHub repositories directly.
-If the user asks you to perform an action that you have a tool for (like merging, closing, reopening, checking conflicts), you MUST use that tool.
-If the user asks you to perform an action you DO NOT have a tool for (like automatically resolving git conflicts), tell them you cannot resolve it automatically.
-HOWEVER, if you detect a merge conflict (e.g. via 'check_conflicts' returning mergeable: false), you MUST immediately use the 'get_pr_diff' tool to analyze the Pull Request's code changes. You must then explain exactly which files and changes are likely causing the conflict, and provide the user with step-by-step terminal commands (like git pull, git checkout, git merge) on how they can fix the conflict locally.
-IMPORTANT: The 'repoId' required for 'list_prs_for_repo' and 'sync_repo' is the INTERNAL 'repoId' found by calling 'list_tracked_repos'. DO NOT pass GitHub names like "Dhruv1249/expense-server" as a repoId. Use the correct internal id (e.g. "a54b...").
+    const systemPromptMessage = `You are an AI assistant for a PR tracking app.
+
+You interact with the user's GitHub data ONLY through the provided tools, which call the backend API.
+
+## STRICT RULES — NO EXCEPTIONS:
+1. ALWAYS call the relevant tool before answering questions about repos, PRs, or data.
+2. NEVER invent, guess, or hallucinate repository names, PR IDs, repoIds, usernames, or any data.
+3. NEVER suggest Git CLI commands (like 'git clone', 'git rebase') unless check_conflicts has confirmed a conflict AND the PR cannot be merged.
+4. If a tool call returns an error, you MUST:
+   a. Report the exact error to the user (e.g. "Tool 'list_tracked_repos' failed: HTTP 401: ...").
+   b. Do NOT attempt to answer using made-up or cached data.
+   c. Suggest the appropriate fix:
+      - HTTP 401 or "re-authenticate" → tell the user to log out and log back in via GitHub OAuth.
+      - HTTP 429 or "rate limit" or "rate (0/" in the error → tell the user GitHub rate limit is exceeded and they need to wait, or re-authenticate to use their personal token.
+      - HTTP 404 → the resource doesn't exist.
+      - HTTP 5xx → backend error, suggest retrying.
+5. 'repoId' for 'list_prs_for_repo' and 'sync_repo' is the INTERNAL _id returned by 'list_tracked_repos', NOT the GitHub repo ID or owner/name.
+6. Only confirm a merge conflict by calling 'check_conflicts' first. Never assume a conflict exists.
+7. When listing repos or PRs, only reference IDs and names that were actually returned by a tool call in this conversation.
+
 Current context: ${JSON.stringify(context)}`;
 
     const messages = [
@@ -347,20 +361,45 @@ Current context: ${JSON.stringify(context)}`;
                 }
 
                 if (url) {
-                    const fetchConfig = {
-                        method,
-                        headers: { 
-                            "Content-Type": "application/json",
-                            "Authorization": authHeader || ""
-                        }
-                    };
+                    const headers = { "Content-Type": "application/json" };
+                    if (authHeader) {
+                        headers.Authorization = authHeader;
+                    }
+
+                    const fetchConfig = { method, headers };
                     if (body) {
                         fetchConfig.body = JSON.stringify(body);
                     }
                     const response = await fetch(url, fetchConfig);
-                    result = await response.text();
+                    const text = await response.text();
+
+                    if (response.ok) {
+                        result = text;
+                    } else {
+                        // Build a descriptive error the model can reason about
+                        let errorDetail = text;
+                        try {
+                            const parsed = JSON.parse(text);
+                            errorDetail = parsed.error || parsed.message || text;
+                        } catch (_) { /* keep raw text */ }
+
+                        // Flag rate limit errors explicitly so the model can advise correctly
+                        const isRateLimit =
+                            response.status === 429 ||
+                            errorDetail.toLowerCase().includes("rate limit") ||
+                            errorDetail.includes("rate (0/");
+                        const isAuthError = response.status === 401 || response.status === 403;
+
+                        if (isRateLimit) {
+                            result = `TOOL_ERROR [rate_limit]: GitHub API rate limit exceeded. The server may be using unauthenticated requests (60/hr limit). Ask the user to re-authenticate via GitHub OAuth to restore the 5000/hr authenticated rate limit. Raw error: ${errorDetail}`;
+                        } else if (isAuthError) {
+                            result = `TOOL_ERROR [auth_error HTTP ${response.status}]: Authentication failed. The user's GitHub token may be missing or expired. Ask them to log out and re-authenticate via GitHub OAuth. Raw error: ${errorDetail}`;
+                        } else {
+                            result = `TOOL_ERROR [HTTP ${response.status}]: ${errorDetail}`;
+                        }
+                    }
                 } else {
-                    result = `Error: function ${functionName} not supported locally.`;
+                    result = `TOOL_ERROR [not_implemented]: function ${functionName} is not supported.`;
                 }
             } catch (err) {
                 result = `Error executing tool: ${err.message}`;

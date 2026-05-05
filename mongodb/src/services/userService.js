@@ -13,9 +13,12 @@ class UserService {
 
   async findUserByGithubId(githubId) {
     try {
-      return await User.findOne({
-        githubId: String(githubId)
-      }).populate('repositories');
+      const githubIdNumber = Number(githubId);
+      const query = Number.isFinite(githubIdNumber)
+        ? { githubId: githubIdNumber }
+        : { githubId };
+
+      return await User.findOne(query);
     } catch (error) {
       throw new Error(`Error finding user: ${error.message}`);
     }
@@ -23,7 +26,7 @@ class UserService {
 
   async findUserById(id) {
     try {
-      return await User.findById(id).populate('repositories');
+      return await User.findById(id);
     } catch (error) {
       throw new Error(`Error finding user: ${error.message}`);
     }
@@ -51,7 +54,7 @@ class UserService {
 
   async getAllUsers() {
     try {
-      return await User.find().populate('repositories');
+      return await User.find();
     } catch (error) {
       throw new Error(`Error fetching users: ${error.message}`);
     }

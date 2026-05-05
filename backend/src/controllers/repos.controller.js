@@ -5,7 +5,7 @@ const { resolveGithubToken } = require("../services/userToken");
 // GET /api/repos
 exports.listRepos = async (req, res) => {
     try {
-        const token = await resolveGithubToken(req);
+        const token = await resolveGithubToken(req, { required: true });
         const repos = await github.listUserRepos(Number(req.query.page) || 1, 30, token);
         res.json(
             repos.map((r) => ({
@@ -29,7 +29,7 @@ exports.listRepos = async (req, res) => {
 // GET /api/repos/:owner/:name
 exports.getRepoDetails = async (req, res) => {
     try {
-        const token = await resolveGithubToken(req);
+        const token = await resolveGithubToken(req, { required: true });
         const repo = await github.getRepo(req.params.owner, req.params.name, token);
         res.json({
             githubRepoId: repo.id,
@@ -53,7 +53,7 @@ exports.trackRepo = async (req, res) => {
     if (!owner || !name) return res.status(400).json({ error: "owner and name are required" });
 
     try {
-        const token = await resolveGithubToken(req);
+        const token = await resolveGithubToken(req, { required: true });
         const fullName = `${owner}/${name}`;
 
         // Check if already tracked
@@ -204,7 +204,7 @@ exports.listTrackedRepos = async (req, res) => {
 // POST /api/repos/:repoId/sync
 exports.syncRepo = async (req, res) => {
     try {
-        const token = await resolveGithubToken(req);
+        const token = await resolveGithubToken(req, { required: true });
         const repo = await db.getRepoById(req.params.repoId, req);
         if (!repo) return res.status(404).json({ error: "Repo not found" });
 
@@ -282,7 +282,7 @@ exports.listPrsForRepo = async (req, res) => {
 // GET /api/repos/:owner/:name/pulls
 exports.listRepoPulls = async (req, res) => {
     try {
-        const token = await resolveGithubToken(req);
+        const token = await resolveGithubToken(req, { required: true });
         const { owner, name } = req.params;
         const state = req.query.state || "open";
         const page = Number(req.query.page) || 1;
@@ -322,7 +322,7 @@ exports.listRepoPulls = async (req, res) => {
 // GET /api/repos/:owner/:name/pulls/:number — single PR from GitHub
 exports.getPrByNumber = async (req, res) => {
     try {
-        const token = await resolveGithubToken(req);
+        const token = await resolveGithubToken(req, { required: true });
         const { owner, name, number } = req.params;
         const pr = await github.getPullRequest(owner, name, Number(number), token);
         res.json({
@@ -351,7 +351,7 @@ exports.getPrByNumber = async (req, res) => {
 // GET /api/repos/:owner/:name/pulls/:number/files — changed files with patches
 exports.listPrFilesByNumber = async (req, res) => {
     try {
-        const token = await resolveGithubToken(req);
+        const token = await resolveGithubToken(req, { required: true });
         const { owner, name, number } = req.params;
         const files = await github.listPrFiles(owner, name, Number(number), token);
         const mapped = files.map((f) => ({
@@ -371,7 +371,7 @@ exports.listPrFilesByNumber = async (req, res) => {
 // GET /api/repos/:owner/:name/pulls/:number/commits — commit list
 exports.listPrCommitsByNumber = async (req, res) => {
     try {
-        const token = await resolveGithubToken(req);
+        const token = await resolveGithubToken(req, { required: true });
         const { owner, name, number } = req.params;
         const commits = await github.listPrCommits(owner, name, Number(number), token);
         const mapped = commits.map((c) => ({
@@ -392,7 +392,7 @@ exports.listPrCommitsByNumber = async (req, res) => {
 // GET /api/repos/:owner/:name/pulls/:number/comments — issue + review comments
 exports.listPrCommentsByNumber = async (req, res) => {
     try {
-        const token = await resolveGithubToken(req);
+        const token = await resolveGithubToken(req, { required: true });
         const { owner, name, number } = req.params;
 
         const [issueComments, reviewComments] = await Promise.all([
@@ -430,7 +430,7 @@ exports.listPrCommentsByNumber = async (req, res) => {
 // POST /api/repos/:owner/:name/pulls/:number/analyze
 exports.analyzePrByNumber = async (req, res) => {
     try {
-        const token = await resolveGithubToken(req);
+        const token = await resolveGithubToken(req, { required: true });
         const { owner, name, number } = req.params;
 
         // 1. Get raw diff from GitHub

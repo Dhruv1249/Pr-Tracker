@@ -1,25 +1,48 @@
 const jwt = require("jsonwebtoken");
 
-// Routes that don't need authentication
+// Routes that are fully public (no auth needed)
 const PUBLIC_ROUTES = [
     "/api/auth/success",
     "/api/auth/github",
     "/api/auth/github/callback",
     "/api/health",
     "/api/webhooks/github",
-    // Internal service-to-service routes (data service, AI)
-    "/api/pullrequests",
-    "/api/reviews",
-    "/api/db/users/github",   // Auth service lookups by githubId
+    "/api/db/users/github",   // Auth service lookups by githubId (internal only)
 ];
 
+// Internal service-to-service data routes: allow GET (reads) without auth,
+// but require auth for mutations (POST/PUT/PATCH/DELETE) so external callers
+// cannot modify PR/review data without a valid JWT.
+const INTERNAL_READONLY_PREFIXES = [
+    "/api/pullrequests",
+    "/api/reviews",
+];
+
+const INTERNAL_SECRET = process.env.INTERNAL_SECRET;
+
 function auth(req, res, next) {
-    // ✅ Skip auth for public routes
+    // ✅ Skip auth for preflight requests
     if (req.method === "OPTIONS") {
         return next();
     }
 
+    // ✅ Fully public routes
     if (PUBLIC_ROUTES.some(route => req.originalUrl.startsWith(route))) {
+        return next();
+    }
+
+    // ✅ Internal service-to-service calls via shared secret
+    //    Used by the backend (webhooks, sync) when there's no browser JWT.
+    if (INTERNAL_SECRET && req.headers["x-internal-secret"] === INTERNAL_SECRET) {
+        return next();
+    }
+
+    // ✅ Internal data service: allow unauthenticated GETs (backend→mongodb reads),
+    //    but require a token for any write operation.
+    if (
+        INTERNAL_READONLY_PREFIXES.some(prefix => req.originalUrl.startsWith(prefix)) &&
+        req.method === "GET"
+    ) {
         return next();
     }
 
@@ -35,6 +58,7 @@ function auth(req, res, next) {
         token = authHeader.split(" ")[1];
     }
 
+    // Also accept token from cookie (set by the auth service on login)
     if (!token && req.cookies?.token) {
         token = req.cookies.token;
     }
@@ -50,7 +74,5 @@ function auth(req, res, next) {
         return res.status(401).json({ error: "Invalid token" });
     }
 }
-
-
 
 module.exports = auth;

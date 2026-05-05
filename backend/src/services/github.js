@@ -26,8 +26,21 @@ async function ghFetch(path, token, opts = {}) {
         ...opts,
     });
     if (!res.ok) {
-        const body = await res.text();
-        const err = new Error(`GitHub API ${res.status}: ${body}`);
+        const bodyRaw = await res.text();
+        const body = bodyRaw.length > 800 ? `${bodyRaw.slice(0, 800)}…` : bodyRaw;
+
+        const limit = res.headers.get("x-ratelimit-limit");
+        const remaining = res.headers.get("x-ratelimit-remaining");
+        const reset = res.headers.get("x-ratelimit-reset");
+
+        let rateNote = "";
+        if (limit || remaining || reset) {
+            const resetDate = reset ? new Date(Number(reset) * 1000).toISOString() : "";
+            const resetPart = resetDate ? `, resets ${resetDate}` : "";
+            rateNote = ` (rate ${remaining ?? "?"}/${limit ?? "?"}${resetPart})`;
+        }
+
+        const err = new Error(`GitHub API ${res.status}: ${body}${rateNote}`);
         err.status = res.status;
         throw err;
     }
