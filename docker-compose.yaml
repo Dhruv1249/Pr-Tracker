@@ -1,0 +1,82 @@
+services:
+  mongodb:
+    build: ./mongodb
+    container_name: mongodb
+    env_file:
+      - ./mongodb/.env
+    ports:
+      - 5004:5004
+    networks:
+      - backend
+
+  backend:
+    build: ./backend
+    container_name: backend
+    env_file:
+      - ./backend/.env
+    ports:
+      - 5002:5002
+    depends_on:
+      - mongodb
+    networks:
+      - backend
+    environment:
+      - NODE_ENV=development
+
+  ai-agent:
+    build: ./ai-agent
+    container_name: ai-agent
+    env_file:
+      - ./ai-agent/.env
+    ports:
+      - 5001:5001
+    depends_on:
+      - backend
+    networks:
+      - backend
+    environment:
+      - NODE_ENV=development
+
+  service-router:
+    build: ./service-router
+    container_name: service-router
+    env_file:
+      - ./service-router/.env
+    ports:
+      - 5003:5003
+    depends_on:
+      - backend
+    networks:
+      - backend
+    environment:
+      - NODE_ENV=development
+
+  auth:
+    build: ./auth
+    container_name: auth
+    env_file:
+      - ./auth/.env
+    ports:
+      - 5005:5005
+    depends_on:
+      - service-router
+    networks:
+      - backend
+    environment:
+      - NODE_ENV=development
+
+  # frontend:
+  #   build: ./frontend
+  #   container_name: frontend
+  #   ports:
+  #     - 5173:5173
+  #   depends_on:
+  #     - service-router
+  #   networks:
+  #     - backend
+  #   environment:
+  #     - NODE_ENV=development
+
+networks:
+  backend:
+    driver: bridge
