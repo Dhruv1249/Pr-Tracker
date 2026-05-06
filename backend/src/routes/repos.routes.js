@@ -20,6 +20,3 @@ router.get("/api/repos/:owner/:name", ctrl.getRepoDetails);
 
 module.exports = router;
 
-
-module.exports = router;
-

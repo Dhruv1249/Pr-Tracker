@@ -4,7 +4,7 @@
   "description": "Core Backend Service for PR Tracker (port 5002)",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "node --dns-result-order=ipv4first src/index.js",
     "dev": "nodemon src/index.js"
   },
   "dependencies": {

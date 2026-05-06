@@ -5,10 +5,14 @@ const axios = require("axios");
 
 // All calls go through the service-router gateway
 const PROXY = process.env.PROXY_URL || "http://localhost:5003";
+const INTERNAL_SECRET = process.env.INTERNAL_SECRET;
 
 const dbClient = axios.create({
   baseURL: PROXY,
-  headers: { "Content-Type": "application/json" },
+  headers: {
+    "Content-Type": "application/json",
+    ...(INTERNAL_SECRET ? { "x-internal-secret": INTERNAL_SECRET } : {}),
+  },
 });
 
 // redirect to github

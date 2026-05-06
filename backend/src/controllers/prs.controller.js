@@ -217,7 +217,19 @@ exports.analyzePr = async (req, res) => {
         const diff = await github.getPullRequestDiff(ownerLogin, repo.name, pr.number, token);
 
         const analysis = await ai.analyzeFullPR(diff);
-        const updated = await db.updatePR(pr.githubId, analysis, req);
+        const aiReviewString =
+            typeof analysis.aiReview === "string" ? analysis.aiReview : JSON.stringify(analysis.aiReview ?? null);
+
+        const updated = await db.updatePR(
+            pr.githubId,
+            {
+                ...analysis,
+                // Keep old columns in sync for dashboard queries
+                aiReview: aiReviewString,
+                aiAnalysis: analysis,
+            },
+            req
+        );
 
         res.json({ message: "AI analysis complete", pr: updated });
     } catch (err) {

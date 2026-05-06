@@ -27,7 +27,8 @@ const userController = {
   async getCurrentUser(req, res, next) {
     try {
       const userId = req.headers["x-user-id"];
-      console.log("req is: ", req);
+
+      console.log("[getCurrentUser] x-user-id:", userId);
 
       if (!userId || Array.isArray(userId)) {
         return res.status(401).json({ success: false, error: "Unauthorized" });

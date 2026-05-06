@@ -101,17 +101,27 @@ class RepositoryService {
   }
 
   async importRepositories(repoGithubIds, userId) {
-    console.log("user id", userId);
-    console.log("repoIds", repoGithubIds);
+    const normalizedRepoIds = (Array.isArray(repoGithubIds) ? repoGithubIds : [])
+      .map((id) => Number(id))
+      .filter((id) => Number.isFinite(id));
+
+    if (normalizedRepoIds.length === 0) {
+      throw new Error('repoIds must contain at least one numeric GitHub repository id');
+    }
+
+    // 1) Store the list on the user document (github repo IDs)
     await User.updateOne(
       { _id: userId },
-      { $addToSet: { repositories: { $each: repoGithubIds } } }
+      { $addToSet: { repositories: { $each: normalizedRepoIds } } }
     );
 
-    const user = await User.findById(userId);
+    // 2) Link the user onto repository documents so /api/repositories filtered by `users` works
+    await Repository.updateMany(
+      { githubId: { $in: normalizedRepoIds } },
+      { $addToSet: { users: userId } }
+    );
 
-    console.log("updated user with new repos", user);
-    return user;
+    return await User.findById(userId);
   }
 }
 

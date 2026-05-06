@@ -8,8 +8,13 @@ exports.handleGithubWebhook = async (req, res) => {
         const sig = req.headers["x-hub-signature-256"];
         if (!sig) return res.status(401).json({ error: "Missing signature" });
 
-        const hmac = crypto.createHmac("sha256", secret).update(JSON.stringify(req.body)).digest("hex");
-        if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(`sha256=${hmac}`))) {
+        const raw = req.rawBody || Buffer.from(JSON.stringify(req.body));
+        const expected = `sha256=${crypto.createHmac("sha256", secret).update(raw).digest("hex")}`;
+
+        const sigBuf = Buffer.from(String(sig));
+        const expectedBuf = Buffer.from(expected);
+
+        if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
             return res.status(401).json({ error: "Invalid signature" });
         }
     }

@@ -1,4 +1,5 @@
-const { Router } = require("express");
+const express = require("express");
+const { Router } = express;
 
 const router = Router();
 
@@ -12,8 +13,8 @@ router.get("/api/health", (req, res) => {
     });
 });
 
-// POST /api/internal/verify-token → Service-to-service auth
-router.post("/api/internal/verify-token", (req, res) => {
+// POST /api/internal/verify-token → Service-to-service auth (parse JSON only for this route)
+router.post("/api/internal/verify-token", express.json(), (req, res) => {
     const jwt = require("jsonwebtoken");
     const { token } = req.body || {};
 

@@ -1,9 +1,19 @@
 const { repositoryService } = require('../services');
+const mongoose = require('mongoose');
 
 const repositoryController = {
   async createRepository(req, res, next) {
     try {
-      const repository = await repositoryService.createRepository(req.body);
+      const repoData = { ...req.body };
+      const userId = req.headers['x-user-id'];
+
+      if (userId && !Array.isArray(userId) && mongoose.Types.ObjectId.isValid(userId)) {
+        const existingUsers = Array.isArray(repoData.users) ? repoData.users : [];
+        // Ensure the creating user is linked to the repo
+        repoData.users = [...new Set([...existingUsers.map(String), String(userId)])];
+      }
+
+      const repository = await repositoryService.createRepository(repoData);
       res.status(201).json({ success: true, data: repository });
     } catch (error) {
       next(error);
@@ -62,7 +72,7 @@ const repositoryController = {
     try {
       const userId = req.headers['x-user-id'];
       const filters = { ...req.query };
-      if (userId) {
+      if (userId && !Array.isArray(userId)) {
         filters.users = userId;
       }
       const repositories = await repositoryService.getAllRepositories(filters);
@@ -83,7 +93,8 @@ const repositoryController = {
 
   async getRepositoryByFullName(req, res, next) {
     try {
-      const repository = await repositoryService.findRepositoryByFullName(req.params.fullName);
+      const fullName = decodeURIComponent(req.params.fullName);
+      const repository = await repositoryService.findRepositoryByFullName(fullName);
       if (!repository) {
         return res.status(404).json({ success: false, error: 'Repository not found' });
       }
@@ -93,12 +104,22 @@ const repositoryController = {
     }
   },
 
+
   async importRepositories(req, res, next) {
     try {
       const userId = req.headers['x-user-id'];
-      console.log("userid is:", userId );
       const { repoIds } = req.body;
-      console.log("repo ids in req body are: ", req.body.repoIds);
+
+      if (!userId || Array.isArray(userId)) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+      }
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ success: false, error: 'Invalid user id' });
+      }
+
+      if (!Array.isArray(repoIds) || repoIds.length === 0) {
+        return res.status(400).json({ success: false, error: 'repoIds (non-empty array) is required' });
+      }
 
       const user = await repositoryService.importRepositories(repoIds, userId);
 

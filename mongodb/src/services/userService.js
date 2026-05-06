@@ -34,8 +34,13 @@ class UserService {
 
   async updateUser(githubId, updateData) {
     try {
+      const githubIdNumber = Number(githubId);
+      const query = Number.isFinite(githubIdNumber)
+        ? { githubId: githubIdNumber }
+        : { githubId };
+
       return await User.findOneAndUpdate(
-        { githubId },
+        query,
         updateData,
         { new: true, runValidators: true }
       );
@@ -46,7 +51,12 @@ class UserService {
 
   async deleteUser(githubId) {
     try {
-      return await User.findOneAndDelete({ githubId });
+      const githubIdNumber = Number(githubId);
+      const query = Number.isFinite(githubIdNumber)
+        ? { githubId: githubIdNumber }
+        : { githubId };
+
+      return await User.findOneAndDelete(query);
     } catch (error) {
       throw new Error(`Error deleting user: ${error.message}`);
     }

@@ -125,6 +125,11 @@ const pullRequestSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    // Structured AI output (stored as object for frontend rendering)
+    aiAnalysis: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
     aiAnalyzedAt: {
       type: Date,
     },

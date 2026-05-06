@@ -7,20 +7,13 @@ const PUBLIC_ROUTES = [
     "/api/auth/github/callback",
     "/api/health",
     "/api/webhooks/github",
-    "/api/db/users/github",   // Auth service lookups by githubId (internal only)
-];
-
-// Internal service-to-service data routes: allow GET (reads) without auth,
-// but require auth for mutations (POST/PUT/PATCH/DELETE) so external callers
-// cannot modify PR/review data without a valid JWT.
-const INTERNAL_READONLY_PREFIXES = [
-    "/api/pullrequests",
-    "/api/reviews",
+    "/api/internal/verify-token", // Internal token verification
 ];
 
 const INTERNAL_SECRET = process.env.INTERNAL_SECRET;
 
 function auth(req, res, next) {
+    console.log(`[auth] req.method: ${req.method}, req.originalUrl: ${req.originalUrl}`);
     // ✅ Skip auth for preflight requests
     if (req.method === "OPTIONS") {
         return next();
@@ -33,16 +26,16 @@ function auth(req, res, next) {
 
     // ✅ Internal service-to-service calls via shared secret
     //    Used by the backend (webhooks, sync) when there's no browser JWT.
+    //    If the call ALSO carries a valid Authorization header (e.g. backend
+    //    forwarding a browser request), still verify it so req.user is set
+    //    and x-user-id gets forwarded to the MongoDB service.
     if (INTERNAL_SECRET && req.headers["x-internal-secret"] === INTERNAL_SECRET) {
-        return next();
-    }
-
-    // ✅ Internal data service: allow unauthenticated GETs (backend→mongodb reads),
-    //    but require a token for any write operation.
-    if (
-        INTERNAL_READONLY_PREFIXES.some(prefix => req.originalUrl.startsWith(prefix)) &&
-        req.method === "GET"
-    ) {
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith("Bearer ")) {
+            try {
+                req.user = jwt.verify(authHeader.split(" ")[1], process.env.JWT_SECRET);
+            } catch (_) { /* internal call — proceed even if JWT is absent/invalid */ }
+        }
         return next();
     }
 

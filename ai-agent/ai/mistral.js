@@ -100,7 +100,7 @@ ${diff}`;
 
 const backendBaseUrl = process.env.CORE_SERVICE_URL || 'http://localhost:5002';
 
-export const agentChat = async (query, context = {}, authHeader) => {
+export const agentChat = async (query, context = {}, authHeader, cookieHeader) => {
     // Defines tools that correspond to the main backend API
     const tools = [
         {
@@ -364,6 +364,12 @@ Current context: ${JSON.stringify(context)}`;
                     const headers = { "Content-Type": "application/json" };
                     if (authHeader) {
                         headers.Authorization = authHeader;
+                    }
+                    // Forward the cookie so the backend can resolve the user's
+                    // stored GitHub token even when no Authorization header exists
+                    // (cookie-based auth set by the auth service on login).
+                    if (cookieHeader) {
+                        headers.Cookie = cookieHeader;
                     }
 
                     const fetchConfig = { method, headers };

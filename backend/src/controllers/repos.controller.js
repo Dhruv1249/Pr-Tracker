@@ -444,26 +444,31 @@ exports.analyzePrByNumber = async (req, res) => {
         const aiService = require("../services/ai");
         const analysis = await aiService.analyzeFullPR(diff);
 
-        // 3. Save to database using the existing prService/db functions if possible,
-        // or just return to client directly.
-        // For now, we'll try to update the PR record in the DB if it exists.
-        const fullName = `${owner}/${name}`;
+        // 3. Save to database (best effort) if this PR is already tracked.
+        let saved = false;
         try {
-            // Find PR by repo full name and number to attach the analysis
-            // We use raw mongodb query or db.js helper
-            const repo = await db.getRepoByFullName(fullName, req);
-            if (repo) {
-                const PR = require("../models/PullRequest");
-                await PR.findOneAndUpdate(
-                    { repository: repo._id, number: Number(number) },
-                    { $set: { aiAnalysis: analysis } }
-                );
-            }
+            const ghPr = await github.getPullRequest(owner, name, Number(number), token);
+            const aiReviewString =
+                typeof analysis.aiReview === "string" ? analysis.aiReview : JSON.stringify(analysis.aiReview ?? null);
+
+            await db.updatePR(
+                ghPr.id,
+                {
+                    ...analysis,
+                    aiReview: aiReviewString,
+                    aiAnalysis: analysis,
+                },
+                req
+            );
+            saved = true;
         } catch (dbErr) {
-            console.warn("Could not save AI analysis to DB:", dbErr.message);
+            // If it's not tracked, DB update will 404; that's fine.
+            if (dbErr.status && dbErr.status !== 404) {
+                console.warn("Could not save AI analysis to DB:", dbErr.message);
+            }
         }
 
-        res.json({ message: "Analysis complete", data: analysis });
+        res.json({ message: "Analysis complete", data: analysis, saved });
     } catch (err) {
         console.error("AI Analysis Error:", err);
         res.status(err.status || 500).json({ error: err.message });
