@@ -390,7 +390,10 @@ Current context: ${JSON.stringify(context)}`;
                 }
 
                 if (url) {
-                    const headers = { "Content-Type": "application/json" };
+                    const headers = { 
+                        "Content-Type": "application/json",
+                        "x-internal-secret": process.env.INTERNAL_SECRET || ""
+                    };
                     if (userId) {
                         headers["x-user-id"] = userId;
                     }
@@ -405,9 +408,15 @@ Current context: ${JSON.stringify(context)}`;
                     const response = await fetch(url, fetchConfig);
                     const text = await response.text();
                     
+                    console.log(`[agent] Tool call ${functionName} response status: ${response.status}`);
+                    if (!response.ok) {
+                        console.error(`[agent] Tool call ${functionName} failed: ${text}`);
+                    }
+
+                    
                     // Audit log the AI tool execution
                     try {
-                        const auditUrl = `${process.env.API_GATEWAY_URL}/api/db/audit`;
+                        const auditUrl = `${process.env.PROXY_URL}/api/db/audit`;
                         await fetch(auditUrl, {
                             method: "POST",
                             headers: {

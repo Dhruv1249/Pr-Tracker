@@ -83,6 +83,7 @@ const repositoryController = {
       if (userId && !Array.isArray(userId)) {
         filters.users = userId;
       }
+      console.log(`[repositoryController] Listing repos for user: ${userId || 'all'}, filters:`, JSON.stringify(filters));
       const repositories = await repositoryService.getAllRepositories(filters);
       res.json({ success: true, data: repositories, count: repositories.length });
     } catch (error) {

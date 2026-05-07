@@ -14,8 +14,16 @@ const INTERNAL_SECRET = process.env.INTERNAL_SECRET;
 
 function auth(req, res, next) {
     console.log(`[auth] req.method: ${req.method}, req.originalUrl: ${req.originalUrl}`);
+
+    // ✅ Internal service-to-service calls via shared secret
+    const hasInternalSecret = INTERNAL_SECRET && req.headers["x-internal-secret"] === INTERNAL_SECRET;
     
-    // Prevent external spoofing of internal identity headers
+    if (hasInternalSecret) {
+        // Trusted internal services can bypass auth and provide their own identity headers
+        return next();
+    }
+
+    // 🔒 External requests: Prevent spoofing of internal identity headers
     delete req.headers["x-user-id"];
     delete req.headers["x-user-github-id"];
 
@@ -29,17 +37,6 @@ function auth(req, res, next) {
         return next();
     }
 
-    // ✅ Internal service-to-service calls via shared secret
-    // Restrict internal bypass to specific allowed routes (e.g., DB operations)
-    const isInternalAllowed = req.originalUrl.startsWith("/api/db/");
-    if (isInternalAllowed) {
-        if (INTERNAL_SECRET && req.headers["x-internal-secret"] === INTERNAL_SECRET) {
-            // Identity headers (x-user-id, x-user-github-id) are already attached by the caller
-            return next();
-        } else {
-            return res.status(403).json({ error: "Forbidden: Internal route" });
-        }
-    }
 
     let token;
 

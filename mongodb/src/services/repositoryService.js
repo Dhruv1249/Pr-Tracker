@@ -105,6 +105,7 @@ class RepositoryService {
       .map((id) => Number(id))
       .filter((id) => Number.isFinite(id));
 
+    console.log(`[repositoryService] Importing ${normalizedRepoIds.length} repos for user ${userId}:`, normalizedRepoIds);
     if (normalizedRepoIds.length === 0) {
       throw new Error('repoIds must contain at least one numeric GitHub repository id');
     }

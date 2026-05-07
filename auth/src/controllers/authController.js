@@ -70,6 +70,8 @@ exports.githubCallback = async (req, res) => {
       user = data.data;
     } else {
       const { data } = await dbClient.put(`/api/db/users/github/${githubUser.id}`, {
+        githubId: githubUser.id,
+        username: githubUser.login,
         accessTokenEncrypted: encryptedToken,
       });
       user = data.data;

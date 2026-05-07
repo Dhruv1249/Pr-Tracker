@@ -5,10 +5,8 @@ const userSchema = Joi.object({
   username: Joi.string().required(),
   email: Joi.string().email().allow(null, ''),
   avatarUrl: Joi.string().uri().allow(null, ''),
-  profileUrl: Joi.string().uri().allow(null, ''),
   accessTokenEncrypted: Joi.string().allow(null, ''),
-  role: Joi.string().valid('user', 'admin').default('user')
-}).unknown(false);
+}).unknown(true);
 
 const repoSchema = Joi.object({
   githubId: Joi.number().required(),
@@ -16,12 +14,14 @@ const repoSchema = Joi.object({
   fullName: Joi.string().required(),
   owner: Joi.object({
     login: Joi.string().required(),
-    id: Joi.number().required(),
+    githubId: Joi.number().optional(),
+    id: Joi.number().optional(),
     avatarUrl: Joi.string().uri().allow(null, '')
   }).required(),
   description: Joi.string().allow(null, ''),
   url: Joi.string().uri().required(),
-  isPrivate: Joi.boolean().default(false),
+  private: Joi.boolean().default(false),
+  isPrivate: Joi.boolean().optional(),
   isActive: Joi.boolean().default(true),
   users: Joi.array().items(Joi.string()).default([])
 }).unknown(true);
@@ -30,25 +30,21 @@ const prSchema = Joi.object({
   githubId: Joi.number().required(),
   number: Joi.number().required(),
   title: Joi.string().required(),
-  state: Joi.string().valid('open', 'closed', 'merged').required(),
+  state: Joi.string().valid('open', 'closed', 'merged', 'draft').required(),
   author: Joi.object({
     login: Joi.string().required(),
-    id: Joi.number().required(),
+    githubId: Joi.number().optional(),
+    id: Joi.number().optional(),
     avatarUrl: Joi.string().uri().allow(null, '')
   }).required(),
   url: Joi.string().uri().required(),
   repository: Joi.string().required(), // ObjectId as string
+  repositoryFullName: Joi.string().optional(),
   body: Joi.string().allow(null, ''),
   createdAtGithub: Joi.date().iso().required(),
   updatedAtGithub: Joi.date().iso().required(),
-  closedAtGithub: Joi.date().iso().allow(null),
-  mergedAtGithub: Joi.date().iso().allow(null),
-  labels: Joi.array().items(
-    Joi.object({
-      name: Joi.string().required(),
-      color: Joi.string().allow(null, '')
-    })
-  ).default([])
+  closedAt: Joi.date().iso().allow(null),
+  mergedAt: Joi.date().iso().allow(null),
 }).unknown(true);
 
 const reviewSchema = Joi.object({
@@ -57,6 +53,7 @@ const reviewSchema = Joi.object({
   pullRequestNumber: Joi.number().required(),
   user: Joi.object({
     login: Joi.string().required(),
+    githubId: Joi.number().optional(),
     id: Joi.number().optional(),
     avatarUrl: Joi.string().uri().allow(null, '')
   }).required(),

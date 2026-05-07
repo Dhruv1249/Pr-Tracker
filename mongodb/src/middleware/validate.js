@@ -8,6 +8,7 @@ const validate = (schema) => (req, res, next) => {
       message: err.message,
       path: err.path.join('.')
     }));
+    console.error(`[validate] Validation failed for ${req.originalUrl}:`, JSON.stringify(errors, null, 2));
     return res.status(400).json({ success: false, error: 'Validation failed', details: errors });
   }
   req.body = value;

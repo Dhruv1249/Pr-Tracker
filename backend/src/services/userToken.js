@@ -7,7 +7,7 @@ const db = require("./db");
 const axios = require("axios");
 
 const INTERNAL_SECRET = process.env.INTERNAL_SECRET;
-const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || "http://auth:5001";
+const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || "http://auth:5005";
 
 async function resolveGithubToken(req, options = {}) {
     const { required = false } = options;

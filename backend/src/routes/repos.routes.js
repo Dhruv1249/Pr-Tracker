@@ -6,6 +6,7 @@ const router = Router();
 router.get("/api/repos", ctrl.listRepos);
 router.get("/api/repos/tracked", ctrl.listTrackedRepos);
 router.post("/api/repos/track", ctrl.trackRepo);
+router.post("/api/repos/import", ctrl.bulkTrackRepos);
 router.delete("/api/repos/track/:repoId", ctrl.untrackRepo);
 router.get("/api/repos/:repoId/prs", ctrl.listPrsForRepo);
 router.post("/api/repos/:repoId/sync", ctrl.syncRepo);

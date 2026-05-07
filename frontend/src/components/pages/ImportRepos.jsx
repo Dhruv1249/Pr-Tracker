@@ -54,9 +54,14 @@ export default function ImportReposPage() {
   /* ---------- IMPORT ---------- */
   const handleImport = async () => {
     try {
+      const toImport = selected.map(id => {
+        const r = repos.find(x => x.githubRepoId === id);
+        return { owner: r.owner, name: r.name };
+      });
+
       await axios.post(
-        `${serverEndpoint}/api/repositories/import`,
-        { repoIds: selected },
+        `${serverEndpoint}/api/repos/import`,
+        { repos: toImport },
         { withCredentials: true }
       );
 

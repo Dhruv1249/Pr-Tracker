@@ -7,19 +7,28 @@ exports.listRepos = async (req, res) => {
     try {
         const token = await resolveGithubToken(req, { required: true });
         const repos = await github.listUserRepos(Number(req.query.page) || 1, 30, token);
+        // Mark which ones are already tracked
+        const tracked = await db.getAllRepos(req).catch(() => []);
+        const trackedMap = new Map(tracked.filter(r => r.isActive).map(r => [String(r.githubId), r._id]));
+
         res.json(
-            repos.map((r) => ({
-                githubRepoId: r.id,
-                owner: r.owner.login,
-                name: r.name,
-                fullName: r.full_name,
-                private: r.private,
-                description: r.description,
-                url: r.html_url,
-                language: r.language,
-                updatedAt: r.updated_at,
-                openPrs: r.open_issues_count ?? 0,
-            }))
+            repos.map((r) => {
+                const internalId = trackedMap.get(String(r.id));
+                return {
+                    githubRepoId: r.id,
+                    repoId: internalId || null,
+                    isTracked: !!internalId,
+                    owner: r.owner.login,
+                    name: r.name,
+                    fullName: r.full_name,
+                    private: r.private,
+                    description: r.description,
+                    url: r.html_url,
+                    language: r.language,
+                    updatedAt: r.updated_at,
+                    openPrs: r.open_issues_count ?? 0,
+                };
+            })
         );
     } catch (err) {
         res.status(err.status || 500).json({ error: err.message });
@@ -47,6 +56,115 @@ exports.getRepoDetails = async (req, res) => {
     }
 };
 
+// Internal helper to track a single repo
+async function performTrack(owner, name, token, req) {
+    const fullName = `${owner}/${name}`;
+    let existing = null;
+    try {
+        existing = await db.getRepoByFullName(fullName, req);
+    } catch (e) {
+        if (e.status !== 404) throw e;
+    }
+
+    if (existing && existing.isActive) {
+        return existing;
+    }
+
+    const ghRepo = await github.getRepo(owner, name, token);
+    let repo;
+
+    if (existing) {
+        repo = await db.updateRepo(existing.githubId, { isActive: true }, req);
+    } else {
+        let existingById = null;
+        try {
+            existingById = await db.getRepoByGithubId(ghRepo.id, req);
+        } catch (e) {
+            if (e.status !== 404) throw e;
+        }
+
+        if (existingById) {
+            repo = await db.updateRepo(ghRepo.id, {
+                fullName: ghRepo.full_name,
+                name: ghRepo.name,
+                isActive: true,
+            }, req);
+        } else {
+            repo = await db.createRepo({
+                githubId: ghRepo.id,
+                name: ghRepo.name,
+                fullName: ghRepo.full_name,
+                owner: {
+                    login: ghRepo.owner.login,
+                    avatarUrl: ghRepo.owner.avatar_url,
+                    githubId: ghRepo.owner.id,
+                },
+                description: ghRepo.description,
+                url: ghRepo.html_url,
+                private: ghRepo.private,
+                language: ghRepo.language,
+                defaultBranch: ghRepo.default_branch,
+                isActive: true,
+            }, req);
+        }
+    }
+
+    // Webhook registration
+    if (!existing || !existing.isActive) {
+        try {
+            await github.createRepoWebhook(owner, name, token);
+        } catch (err) {
+            console.warn(`[performTrack] Webhook failed for ${fullName}: ${err.message}`);
+        }
+    }
+
+    // Initial PR Import
+    const ghPrs = await github.listPullRequests(owner, name, "all", 1, 100, token);
+    for (const ghPr of ghPrs) {
+        let state = "open";
+        if (ghPr.merged_at) state = "merged";
+        else if (ghPr.state === "closed") state = "closed";
+        else if (ghPr.draft) state = "draft";
+
+        try {
+            const existingPR = await db.getPRByGithubId(ghPr.id, req).catch(() => null);
+            if (!existingPR) {
+                await db.createPR({
+                    githubId: ghPr.id,
+                    number: ghPr.number,
+                    title: ghPr.title,
+                    description: ghPr.body || "",
+                    state,
+                    author: {
+                        login: ghPr.user.login,
+                        avatarUrl: ghPr.user.avatar_url,
+                        githubId: ghPr.user.id,
+                    },
+                    repository: repo._id,
+                    repositoryFullName: ghRepo.full_name,
+                    baseBranch: ghPr.base.ref,
+                    headBranch: ghPr.head.ref,
+                    url: ghPr.html_url,
+                    createdAtGithub: ghPr.created_at,
+                    updatedAtGithub: ghPr.updated_at,
+                    mergedAt: ghPr.merged_at || null,
+                }, req);
+            }
+        } catch (e) {
+            console.warn(`[performTrack] PR import failed for ${ghPr.id}: ${e.message}`);
+        }
+    }
+
+    // Link to user
+    try {
+        await db.importRepositories([ghRepo.id], req);
+    } catch (err) {
+        console.warn(`[performTrack] User link failed for ${ghRepo.id}: ${err.message}`);
+    }
+
+    return repo;
+}
+
 // POST /api/repos/track
 exports.trackRepo = async (req, res) => {
     const { owner, name } = req.body;
@@ -54,131 +172,33 @@ exports.trackRepo = async (req, res) => {
 
     try {
         const token = await resolveGithubToken(req, { required: true });
-        const fullName = `${owner}/${name}`;
+        const repo = await performTrack(owner, name, token, req);
+        res.status(201).json({ repo });
+    } catch (err) {
+        res.status(err.status || 500).json({ error: err.message });
+    }
+};
 
-        // Check if already tracked
-        let existing = null;
-        try {
-            existing = await db.getRepoByFullName(fullName, req);
-        } catch (e) {
-            if (e.status !== 404) throw e;
-        }
+// POST /api/repos/import (Bulk)
+exports.bulkTrackRepos = async (req, res) => {
+    const { repos } = req.body; // Array of { owner, name }
+    if (!Array.isArray(repos)) return res.status(400).json({ error: "repos array is required" });
 
-        if (existing && existing.isActive) {
-            return res.status(409).json({ error: "Repo already tracked" });
-        }
+    try {
+        const token = await resolveGithubToken(req, { required: true });
+        const results = [];
+        const errors = [];
 
-        const ghRepo = await github.getRepo(owner, name, token);
-
-        let repo;
-        if (existing) {
-            // Re-activate previously untracked repo
-            repo = await db.updateRepo(existing.githubId, { isActive: true }, req);
-        } else {
-            // Also check by githubId to handle renames
-            let existingById = null;
+        for (const item of repos) {
             try {
-                existingById = await db.getRepoByGithubId(ghRepo.id, req);
-            } catch (e) {
-                if (e.status !== 404) throw e;
-            }
-
-            if (existingById) {
-                repo = await db.updateRepo(ghRepo.id, {
-                    fullName: ghRepo.full_name,
-                    name: ghRepo.name,
-                    isActive: true,
-                }, req);
-            } else {
-                repo = await db.createRepo({
-                    githubId: ghRepo.id,
-                    name: ghRepo.name,
-                    fullName: ghRepo.full_name,
-                    owner: {
-                        login: ghRepo.owner.login,
-                        avatarUrl: ghRepo.owner.avatar_url,
-                        githubId: ghRepo.owner.id,
-                    },
-                    description: ghRepo.description,
-                    url: ghRepo.html_url,
-                    private: ghRepo.private,
-                    language: ghRepo.language,
-                    defaultBranch: ghRepo.default_branch,
-                    isActive: true,
-                }, req);
-            }
-        }
-
-        // Register webhook for real-time updates only if not already active
-        if (!existing || !existing.isActive) {
-            try {
-                await github.createRepoWebhook(owner, name, token);
+                const repo = await performTrack(item.owner, item.name, token, req);
+                results.push(repo);
             } catch (err) {
-                console.warn(`[trackRepo] Webhook registration failed: ${err.message}`);
+                errors.push({ repo: `${item.owner}/${item.name}`, error: err.message });
             }
         }
 
-        // Import all PRs
-        const ghPrs = await github.listPullRequests(owner, name, "all", 1, 100, token);
-        let imported = 0;
-        for (const ghPr of ghPrs) {
-            let state = "open";
-            if (ghPr.merged_at) state = "merged";
-            else if (ghPr.state === "closed") state = "closed";
-            else if (ghPr.draft) state = "draft";
-
-            try {
-                const existingPR = await db.getPRByGithubId(ghPr.id, req);
-                // Conflict resolution: only update if incoming data is newer
-                const incomingDate = new Date(ghPr.updated_at).getTime();
-                const existingDate = new Date(existingPR.updatedAtGithub || 0).getTime();
-                
-                if (incomingDate > existingDate) {
-                    // Already exists and needs update, update it
-                    await db.updatePR(ghPr.id, {
-                        title: ghPr.title,
-                        state,
-                        updatedAtGithub: ghPr.updated_at,
-                        mergedAt: ghPr.merged_at || null,
-                    }, req);
-                }
-            } catch (e) {
-                if (e.status === 404) {
-                    await db.createPR({
-                        githubId: ghPr.id,
-                        number: ghPr.number,
-                        title: ghPr.title,
-                        description: ghPr.body || "",
-                        state,
-                        author: {
-                            login: ghPr.user.login,
-                            avatarUrl: ghPr.user.avatar_url,
-                            githubId: ghPr.user.id,
-                        },
-                        repository: repo._id,
-                        repositoryFullName: ghRepo.full_name,
-                        baseBranch: ghPr.base.ref,
-                        headBranch: ghPr.head.ref,
-                        url: ghPr.html_url,
-                        createdAtGithub: ghPr.created_at,
-                        updatedAtGithub: ghPr.updated_at,
-                        mergedAt: ghPr.merged_at || null,
-                    }, req);
-                    imported++;
-                } else {
-                    throw e;
-                }
-            }
-        }
-
-        // Link the repo to the current user
-        try {
-            await db.importRepositories([ghRepo.id], req);
-        } catch (err) {
-            console.warn(`[trackRepo] Failed to link repo to user: ${err.message}`);
-        }
-
-        res.status(201).json({ repo, prsImported: imported });
+        res.json({ success: true, imported: results.length, errors: errors.length > 0 ? errors : undefined });
     } catch (err) {
         res.status(err.status || 500).json({ error: err.message });
     }
@@ -202,7 +222,10 @@ exports.untrackRepo = async (req, res) => {
 exports.listTrackedRepos = async (req, res) => {
     try {
         const repos = await db.getAllRepos(req);
-        res.json(repos.filter((r) => r.isActive));
+        res.json(repos.filter((r) => r.isActive).map(r => ({
+            ...r,
+            repoId: r._id // Ensure repoId is explicitly available
+        })));
     } catch (err) {
         res.status(err.status || 500).json({ error: err.message });
     }
@@ -212,7 +235,13 @@ exports.listTrackedRepos = async (req, res) => {
 exports.syncRepo = async (req, res) => {
     try {
         const token = await resolveGithubToken(req, { required: true });
-        const repo = await db.getRepoById(req.params.repoId, req);
+        let repo = await db.getRepoById(req.params.repoId, req).catch(() => null);
+        
+        // Fallback: try GitHub ID if repoId lookup failed
+        if (!repo) {
+            repo = await db.getRepoByGithubId(req.params.repoId, req).catch(() => null);
+        }
+
         if (!repo) return res.status(404).json({ error: "Repo not found" });
 
         const ownerLogin = repo.owner?.login || repo.fullName.split("/")[0];
@@ -282,7 +311,13 @@ exports.syncRepo = async (req, res) => {
 // GET /api/repos/:repoId/prs
 exports.listPrsForRepo = async (req, res) => {
     try {
-        const repo = await db.getRepoById(req.params.repoId, req);
+        let repo = await db.getRepoById(req.params.repoId, req).catch(() => null);
+        
+        // Fallback: try GitHub ID if repoId lookup failed
+        if (!repo) {
+            repo = await db.getRepoByGithubId(req.params.repoId, req).catch(() => null);
+        }
+
         if (!repo) return res.status(404).json({ error: "Repo not found" });
         const prs = await db.getPRsByRepository(repo._id, req);
         res.json(prs);

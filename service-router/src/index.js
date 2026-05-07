@@ -40,6 +40,12 @@ const limiter = rateLimit({
 app.use(limiter);
 
 const csrfProtection = (req, res, next) => {
+    // Exempt internal service-to-service calls from CSRF checks
+    const internalSecret = req.headers['x-internal-secret'];
+    if (internalSecret && internalSecret === process.env.INTERNAL_SECRET) {
+        return next();
+    }
+
     if (["POST", "PUT", "DELETE", "PATCH"].includes(req.method)) {
         // Exempt webhooks which come from GitHub, not the browser
         if (!req.originalUrl.startsWith("/api/webhooks")) {
