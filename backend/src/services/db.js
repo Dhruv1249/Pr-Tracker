@@ -14,13 +14,13 @@ const client = axios.create({
 
 async function dbFetch(method, path, data, req) {
     try {
-        // Forward auth-related headers from the browser request (when available)
+        // Forward identity headers from the incoming request
         const forwardHeaders = {};
-        if (req?.headers?.authorization) {
-            forwardHeaders.authorization = req.headers.authorization;
+        if (req?.headers?.["x-user-id"]) {
+            forwardHeaders["x-user-id"] = req.headers["x-user-id"];
         }
-        if (req?.headers?.cookie) {
-            forwardHeaders.cookie = req.headers.cookie;
+        if (req?.headers?.["x-user-github-id"]) {
+            forwardHeaders["x-user-github-id"] = req.headers["x-user-github-id"];
         }
 
         // Always attach the internal service secret so the gateway trusts
@@ -140,6 +140,12 @@ async function getAllReviews(req) {
     return dbFetch("get", "/api/reviews", null, req);
 }
 
+// ---- Audit (proxied at /api/db/audit → mongodb's /api/audit) ----
+async function createAuditLog(data, req) {
+    // Audit logs bypass gateway user token requirements since they're system-generated
+    return dbFetch("post", "/api/db/audit", data, req);
+}
+
 // ---- Users (proxied at /api/db/users → mongodb's /api/users) ----
 
 async function createUser(data, req) {
@@ -179,4 +185,5 @@ module.exports = {
     createUser,
     getUserByGithubId,
     updateUser,
+    createAuditLog,
 };

@@ -65,6 +65,12 @@ exports.mergePr = async (req, res) => {
         const ownerLogin = repo.owner?.login || repo.fullName.split("/")[0];
         await github.mergePullRequest(ownerLogin, repo.name, pr.number, token);
         const updated = await db.mergePRInDb(pr.githubId, req);
+        await db.createAuditLog({
+            action: "MERGE_PR",
+            actor: `user:${req.headers["x-user-github-id"] || "unknown"}`,
+            target: `pr:${pr.number}`,
+            details: { repoId: repo._id, repoName: repo.fullName, prId: pr._id }
+        }, req).catch(console.error);
         res.json({ message: "PR merged", pr: updated });
     } catch (err) {
         if (err.status === 404) return res.status(404).json({ error: "PR not found" });
@@ -85,6 +91,12 @@ exports.closePr = async (req, res) => {
         const ownerLogin = repo.owner?.login || repo.fullName.split("/")[0];
         await github.closePullRequest(ownerLogin, repo.name, pr.number, token);
         const updated = await db.closePRInDb(pr.githubId, req);
+        await db.createAuditLog({
+            action: "CLOSE_PR",
+            actor: `user:${req.headers["x-user-github-id"] || "unknown"}`,
+            target: `pr:${pr.number}`,
+            details: { repoId: repo._id, repoName: repo.fullName, prId: pr._id }
+        }, req).catch(console.error);
         res.json({ message: "PR closed", pr: updated });
     } catch (err) {
         if (err.status === 404) return res.status(404).json({ error: "PR not found" });
@@ -105,6 +117,12 @@ exports.reopenPr = async (req, res) => {
         const ownerLogin = repo.owner?.login || repo.fullName.split("/")[0];
         await github.reopenPullRequest(ownerLogin, repo.name, pr.number, token);
         const updated = await db.reopenPRInDb(pr.githubId, req);
+        await db.createAuditLog({
+            action: "REOPEN_PR",
+            actor: `user:${req.headers["x-user-github-id"] || "unknown"}`,
+            target: `pr:${pr.number}`,
+            details: { repoId: repo._id, repoName: repo.fullName, prId: pr._id }
+        }, req).catch(console.error);
         res.json({ message: "PR reopened", pr: updated });
     } catch (err) {
         if (err.status === 404) return res.status(404).json({ error: "PR not found" });
@@ -150,6 +168,13 @@ exports.submitReview = async (req, res) => {
             body: comment || "",
             submittedAt: new Date().toISOString(),
         }, req);
+
+        await db.createAuditLog({
+            action: "SUBMIT_REVIEW",
+            actor: `user:${req.headers["x-user-github-id"] || "unknown"}`,
+            target: `pr:${pr.number}`,
+            details: { decision, repoId: repo._id, repoName: repo.fullName, prId: pr._id }
+        }, req).catch(console.error);
 
         res.status(201).json(review);
     } catch (err) {

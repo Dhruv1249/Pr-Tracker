@@ -736,11 +736,13 @@ function MarkdownBody({ children }) {
             />
           );
         },
-        // Links — styled accent colour, open in new tab
+        // Links — styled accent colour, open in new tab, sanitized
         a({ href, children }) {
+          // Explicitly block javascript:, vbscript:, data:, etc.
+          const isSafe = href && (/^(https?|mailto|tel):/i.test(href) || /^[\/#]/.test(href));
           return (
             <a
-              href={href}
+              href={isSafe ? href : "about:blank"}
               target="_blank"
               rel="noopener noreferrer"
               className="text-accent hover:underline break-all"

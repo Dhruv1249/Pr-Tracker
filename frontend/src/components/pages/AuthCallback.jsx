@@ -3,8 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 /**
  * /auth/callback
- * Extracts the JWT from the URL hash fragment, stores it in localStorage,
- * then redirects to /dashboard.
+ * Redirects to /dashboard after successful login via HttpOnly cookie.
  */
 export default function AuthCallback() {
   const navigate = useNavigate();

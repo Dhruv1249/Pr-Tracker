@@ -117,7 +117,7 @@ ${diff}`;
 
 const backendBaseUrl = process.env.CORE_SERVICE_URL || 'http://localhost:5002';
 
-export const agentChat = async (query, context = {}, authHeader, cookieHeader) => {
+export const agentChat = async (query, context = {}, userId, githubId) => {
     // Defines tools that correspond to the main backend API
     const tools = [
         {
@@ -391,14 +391,11 @@ Current context: ${JSON.stringify(context)}`;
 
                 if (url) {
                     const headers = { "Content-Type": "application/json" };
-                    if (authHeader) {
-                        headers.Authorization = authHeader;
+                    if (userId) {
+                        headers["x-user-id"] = userId;
                     }
-                    // Forward the cookie so the backend can resolve the user's
-                    // stored GitHub token even when no Authorization header exists
-                    // (cookie-based auth set by the auth service on login).
-                    if (cookieHeader) {
-                        headers.Cookie = cookieHeader;
+                    if (githubId) {
+                        headers["x-user-github-id"] = githubId;
                     }
 
                     const fetchConfig = { method, headers };
@@ -407,6 +404,26 @@ Current context: ${JSON.stringify(context)}`;
                     }
                     const response = await fetch(url, fetchConfig);
                     const text = await response.text();
+                    
+                    // Audit log the AI tool execution
+                    try {
+                        const auditUrl = `${process.env.API_GATEWAY_URL}/api/db/audit`;
+                        await fetch(auditUrl, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "x-internal-secret": process.env.INTERNAL_SECRET
+                            },
+                            body: JSON.stringify({
+                                action: "AI_TOOL_CALL",
+                                actor: `system:ai-agent(user:${githubId})`,
+                                target: `tool:${functionName}`,
+                                details: { functionArgs, status: response.status }
+                            })
+                        });
+                    } catch (auditErr) {
+                        console.error("Failed to audit AI tool call", auditErr);
+                    }
 
                     if (response.ok) {
                         result = text;

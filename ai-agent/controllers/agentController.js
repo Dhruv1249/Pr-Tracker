@@ -3,10 +3,8 @@ import { agentChat } from "../ai/mistral.js";
 const agentController = {
     interact: async (req, res) => {
         const { query, context } = req.body;
-        const authHeader = req.headers.authorization;
-        // Also forward the cookie — the frontend uses cookie-based auth (JWT in
-        // an HTTP-only cookie), so we need to pass it to the backend tool calls.
-        const cookieHeader = req.headers.cookie;
+        const userId = req.headers["x-user-id"];
+        const githubId = req.headers["x-user-github-id"];
         if (!query || typeof query !== 'string') return res.status(400).json({ error: "Query is required and must be a string" });
         if (query.length > 2000) return res.status(400).json({ error: "Query is too long" });
 
@@ -29,7 +27,7 @@ const agentController = {
             }
         }
         try {
-            const response = await agentChat(query, sanitizedContext, authHeader, cookieHeader);
+            const response = await agentChat(query, sanitizedContext, userId, githubId);
             res.json({ message: response });
         } catch (error) {
             console.error("Error running agent:", error?.message || error);

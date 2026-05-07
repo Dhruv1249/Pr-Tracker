@@ -1,8 +1,30 @@
 const crypto = require("crypto");
 const db = require("../services/db");
 
+// Simple in-memory LRU approximation for replay protection
+const processedDeliveries = new Set();
+const MAX_DELIVERIES = 1000;
+
 // POST /api/webhooks/github
 exports.handleGithubWebhook = async (req, res) => {
+    const deliveryId = req.headers["x-github-delivery"];
+    if (!deliveryId) {
+        return res.status(400).json({ error: "Missing x-github-delivery header" });
+    }
+
+    if (processedDeliveries.has(deliveryId)) {
+        console.warn(`[Webhook] Rejected replay of delivery ID: ${deliveryId}`);
+        return res.status(409).json({ error: "Webhook payload already processed (replay detected)" });
+    }
+
+    // Prevent memory leaks by capping the Set size
+    if (processedDeliveries.size >= MAX_DELIVERIES) {
+        const firstItem = processedDeliveries.values().next().value;
+        processedDeliveries.delete(firstItem);
+    }
+    // Mark as processed immediately to prevent concurrent replay races
+    processedDeliveries.add(deliveryId);
+
     const secret = process.env.GITHUB_WEBHOOK_SECRET;
     if (!secret) {
         return res.status(500).json({ error: "Webhook secret not configured" });

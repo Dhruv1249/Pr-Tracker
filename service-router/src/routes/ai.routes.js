@@ -12,14 +12,7 @@ function stripCorsHeaders(proxyRes) {
     delete proxyRes.headers["access-control-allow-headers"];
 }
 
-// Synthesize an Authorization: Bearer header from cookie when no header auth exists.
-// This ensures the AI agent always receives a Bearer token to forward on tool calls
-// to the backend, regardless of whether the frontend used cookie or header auth.
-function resolveAuthHeader(req) {
-    if (req.headers.authorization) return req.headers.authorization;
-    if (req.cookies?.token) return `Bearer ${req.cookies.token}`;
-    return null;
-}
+
 
 // All AI routes go to the AI agent — restore full path so the agent sees /api/ai/*
 router.use(
@@ -30,13 +23,12 @@ router.use(
         on: {
             proxyReq: (proxyReq, req) => {
                 proxyReq.path = req.originalUrl;
-                const auth = resolveAuthHeader(req);
-                if (auth) {
-                    proxyReq.setHeader('Authorization', auth);
+                if (req.user) {
+                    proxyReq.setHeader('x-user-id', req.user.id);
+                    proxyReq.setHeader('x-user-github-id', req.user.githubId);
                 }
-                if (req.headers.cookie) {
-                    proxyReq.setHeader('Cookie', req.headers.cookie);
-                }
+                proxyReq.removeHeader('Authorization');
+                proxyReq.removeHeader('Cookie');
             },
             proxyRes: stripCorsHeaders,
         },
@@ -52,13 +44,12 @@ router.use(
         on: {
             proxyReq: (proxyReq, req) => {
                 proxyReq.path = req.originalUrl.replace("/api/risk", "/api/ai/risk");
-                const auth = resolveAuthHeader(req);
-                if (auth) {
-                    proxyReq.setHeader('Authorization', auth);
+                if (req.user) {
+                    proxyReq.setHeader('x-user-id', req.user.id);
+                    proxyReq.setHeader('x-user-github-id', req.user.githubId);
                 }
-                if (req.headers.cookie) {
-                    proxyReq.setHeader('Cookie', req.headers.cookie);
-                }
+                proxyReq.removeHeader('Authorization');
+                proxyReq.removeHeader('Cookie');
             },
             proxyRes: stripCorsHeaders,
         },
@@ -73,13 +64,12 @@ router.use(
         on: {
             proxyReq: (proxyReq, req) => {
                 proxyReq.path = req.originalUrl.replace("/api/security", "/api/ai/security");
-                const auth = resolveAuthHeader(req);
-                if (auth) {
-                    proxyReq.setHeader('Authorization', auth);
+                if (req.user) {
+                    proxyReq.setHeader('x-user-id', req.user.id);
+                    proxyReq.setHeader('x-user-github-id', req.user.githubId);
                 }
-                if (req.headers.cookie) {
-                    proxyReq.setHeader('Cookie', req.headers.cookie);
-                }
+                proxyReq.removeHeader('Authorization');
+                proxyReq.removeHeader('Cookie');
             },
             proxyRes: stripCorsHeaders,
         },

@@ -180,7 +180,8 @@ export default function AiSidebar({ open, onClose }) {
                 }`}
               >
                 {msg.role === "ai" ? (
-                  <ReactMarkdown
+                  <>
+                    <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
                       p: ({ children }) => (
@@ -211,6 +212,7 @@ export default function AiSidebar({ open, onClose }) {
                       ),
                     }}
                   >
+                
                     {msg.content}
                   </ReactMarkdown>
                   {msg.action && (

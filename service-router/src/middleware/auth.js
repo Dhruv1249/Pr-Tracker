@@ -14,6 +14,11 @@ const INTERNAL_SECRET = process.env.INTERNAL_SECRET;
 
 function auth(req, res, next) {
     console.log(`[auth] req.method: ${req.method}, req.originalUrl: ${req.originalUrl}`);
+    
+    // Prevent external spoofing of internal identity headers
+    delete req.headers["x-user-id"];
+    delete req.headers["x-user-github-id"];
+
     // ✅ Skip auth for preflight requests
     if (req.method === "OPTIONS") {
         return next();
@@ -27,30 +32,19 @@ function auth(req, res, next) {
     // ✅ Internal service-to-service calls via shared secret
     // Restrict internal bypass to specific allowed routes (e.g., DB operations)
     const isInternalAllowed = req.originalUrl.startsWith("/api/db/");
-    if (INTERNAL_SECRET && req.headers["x-internal-secret"] === INTERNAL_SECRET && isInternalAllowed) {
-        const authHeader = req.headers.authorization;
-        if (authHeader && authHeader.startsWith("Bearer ")) {
-            if (process.env.JWT_SECRET) {
-                try {
-                    req.user = jwt.verify(authHeader.split(" ")[1], process.env.JWT_SECRET, {
-                        issuer: "pr-tracker-auth",
-                        audience: "pr-tracker-system"
-                    });
-                } catch (_) { /* internal call — proceed even if JWT is absent/invalid */ }
-            }
+    if (isInternalAllowed) {
+        if (INTERNAL_SECRET && req.headers["x-internal-secret"] === INTERNAL_SECRET) {
+            // Identity headers (x-user-id, x-user-github-id) are already attached by the caller
+            return next();
+        } else {
+            return res.status(403).json({ error: "Forbidden: Internal route" });
         }
-        return next();
     }
 
     let token;
 
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-        token = authHeader.split(" ")[1];
-    }
-
-    // Also accept token from cookie (set by the auth service on login)
-    if (!token && req.cookies?.token) {
+    // Users must authenticate exclusively via the HttpOnly cookie
+    if (req.cookies?.token) {
         token = req.cookies.token;
     }
 

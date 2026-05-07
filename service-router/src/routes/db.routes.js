@@ -46,4 +46,17 @@ router.use(
     })
 );
 
+router.use(
+    "/api/db/audit",
+    createProxyMiddleware({
+        target: DB_SERVICE,
+        changeOrigin: true,
+        on: {
+            proxyReq: (proxyReq, req) => {
+                proxyReq.path = `/api/audit${req.url}`;
+            },
+        },
+    })
+);
+
 module.exports = router;

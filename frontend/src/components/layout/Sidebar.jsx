@@ -36,7 +36,6 @@ export function Sidebar({ user }) {
     } catch (err) {
       console.error("Logout failed", err);
     }
-    localStorage.removeItem("token");
     window.location.href = "/login";
   };
 
