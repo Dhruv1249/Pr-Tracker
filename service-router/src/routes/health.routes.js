@@ -20,9 +20,23 @@ router.post("/api/internal/verify-token", express.json(), (req, res) => {
 
     if (!token) return res.status(400).json({ error: "Token required" });
 
+    if (!process.env.JWT_SECRET) {
+        return res.status(500).json({ valid: false, error: "Internal server error" });
+    }
+
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        res.json({ valid: true, decoded });
+        const decoded = jwt.verify(token, process.env.JWT_SECRET, {
+            issuer: "pr-tracker-auth",
+            audience: "pr-tracker-system"
+        });
+        res.json({ 
+            valid: true, 
+            user: {
+                id: decoded.id,
+                githubId: decoded.githubId,
+                username: decoded.username
+            }
+        });
     } catch (err) {
         res.status(401).json({ valid: false, error: err.message });
     }

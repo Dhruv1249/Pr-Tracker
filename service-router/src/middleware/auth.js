@@ -25,22 +25,20 @@ function auth(req, res, next) {
     }
 
     // ✅ Internal service-to-service calls via shared secret
-    //    Used by the backend (webhooks, sync) when there's no browser JWT.
-    //    If the call ALSO carries a valid Authorization header (e.g. backend
-    //    forwarding a browser request), still verify it so req.user is set
-    //    and x-user-id gets forwarded to the MongoDB service.
-    if (INTERNAL_SECRET && req.headers["x-internal-secret"] === INTERNAL_SECRET) {
+    // Restrict internal bypass to specific allowed routes (e.g., DB operations)
+    const isInternalAllowed = req.originalUrl.startsWith("/api/db/");
+    if (INTERNAL_SECRET && req.headers["x-internal-secret"] === INTERNAL_SECRET && isInternalAllowed) {
         const authHeader = req.headers.authorization;
         if (authHeader && authHeader.startsWith("Bearer ")) {
-            try {
-                req.user = jwt.verify(authHeader.split(" ")[1], process.env.JWT_SECRET);
-            } catch (_) { /* internal call — proceed even if JWT is absent/invalid */ }
+            if (process.env.JWT_SECRET) {
+                try {
+                    req.user = jwt.verify(authHeader.split(" ")[1], process.env.JWT_SECRET, {
+                        issuer: "pr-tracker-auth",
+                        audience: "pr-tracker-system"
+                    });
+                } catch (_) { /* internal call — proceed even if JWT is absent/invalid */ }
+            }
         }
-        return next();
-    }
-
-    // Allow user creation from auth service (internal, not browser-originated)
-    if (req.originalUrl === "/api/db/users" && req.method === "POST") {
         return next();
     }
 
@@ -60,8 +58,16 @@ function auth(req, res, next) {
         return res.status(401).json({ error: "No token provided" });
     }
 
+    if (!process.env.JWT_SECRET) {
+        console.error("CRITICAL: JWT_SECRET is not defined!");
+        return res.status(500).json({ error: "Internal server error" });
+    }
+
     try {
-        req.user = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = jwt.verify(token, process.env.JWT_SECRET, {
+            issuer: "pr-tracker-auth",
+            audience: "pr-tracker-system"
+        });
         next();
     } catch (err) {
         return res.status(401).json({ error: "Invalid token" });

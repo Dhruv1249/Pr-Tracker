@@ -14,9 +14,10 @@ class UserService {
   async findUserByGithubId(githubId) {
     try {
       const githubIdNumber = Number(githubId);
-      const query = Number.isFinite(githubIdNumber)
-        ? { githubId: githubIdNumber }
-        : { githubId };
+      if (Number.isNaN(githubIdNumber)) {
+        throw new Error('Invalid githubId');
+      }
+      const query = { githubId: githubIdNumber };
 
       return await User.findOne(query);
     } catch (error) {
@@ -35,9 +36,10 @@ class UserService {
   async updateUser(githubId, updateData) {
     try {
       const githubIdNumber = Number(githubId);
-      const query = Number.isFinite(githubIdNumber)
-        ? { githubId: githubIdNumber }
-        : { githubId };
+      if (Number.isNaN(githubIdNumber)) {
+        throw new Error('Invalid githubId');
+      }
+      const query = { githubId: githubIdNumber };
 
       return await User.findOneAndUpdate(
         query,
@@ -52,9 +54,10 @@ class UserService {
   async deleteUser(githubId) {
     try {
       const githubIdNumber = Number(githubId);
-      const query = Number.isFinite(githubIdNumber)
-        ? { githubId: githubIdNumber }
-        : { githubId };
+      if (Number.isNaN(githubIdNumber)) {
+        throw new Error('Invalid githubId');
+      }
+      const query = { githubId: githubIdNumber };
 
       return await User.findOneAndDelete(query);
     } catch (error) {

@@ -5,7 +5,7 @@ services:
     env_file:
       - ./mongodb/.env
     ports:
-      - 5004:5004
+      - 127.0.0.1:5004:5004
     networks:
       - backend
 
@@ -15,7 +15,7 @@ services:
     env_file:
       - ./backend/.env
     ports:
-      - 5002:5002
+      - 127.0.0.1:5002:5002
     depends_on:
       - mongodb
     networks:
@@ -29,7 +29,7 @@ services:
     env_file:
       - ./ai-agent/.env
     ports:
-      - 5001:5001
+      - 127.0.0.1:5001:5001
     depends_on:
       - backend
     networks:
@@ -57,7 +57,7 @@ services:
     env_file:
       - ./auth/.env
     ports:
-      - 5005:5005
+      - 127.0.0.1:5005:5005
     depends_on:
       - service-router
     networks:

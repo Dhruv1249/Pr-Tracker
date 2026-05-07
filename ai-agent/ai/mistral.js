@@ -42,7 +42,14 @@ ${diff}`;
     });
 
     try {
-        return JSON.parse(chatResponse.choices[0].message.content);
+        const parsed = JSON.parse(chatResponse.choices[0].message.content);
+        return {
+            summary: typeof parsed.summary === 'string' ? parsed.summary : "No summary provided.",
+            bugs: Array.isArray(parsed.bugs) ? parsed.bugs : [],
+            codeQuality: Array.isArray(parsed.codeQuality) ? parsed.codeQuality : [],
+            performance: Array.isArray(parsed.performance) ? parsed.performance : [],
+            inlineFeedback: Array.isArray(parsed.inlineFeedback) ? parsed.inlineFeedback : []
+        };
     } catch (e) {
         // Fallback: return a minimal valid object
         return { summary: chatResponse.choices[0].message.content, bugs: [], codeQuality: [], performance: [], inlineFeedback: [] };
@@ -68,7 +75,12 @@ ${diff}`;
     });
 
     try {
-        return JSON.parse(chatResponse.choices[0].message.content);
+        const parsed = JSON.parse(chatResponse.choices[0].message.content);
+        const validRisks = ["low", "medium", "high"];
+        return {
+            riskLevel: validRisks.includes(parsed.riskLevel) ? parsed.riskLevel : "high",
+            reason: typeof parsed.reason === 'string' ? parsed.reason : "Failed to parse detailed reason."
+        };
     } catch (e) {
         return { riskLevel: "high", reason: "Failed to parse risk assessment from AI." };
     }
@@ -92,7 +104,12 @@ ${diff}`;
     });
 
     try {
-        return JSON.parse(chatResponse.choices[0].message.content);
+        const parsed = JSON.parse(chatResponse.choices[0].message.content);
+        const validStatuses = ["clean", "flagged"];
+        return {
+            status: validStatuses.includes(parsed.status) ? parsed.status : "flagged",
+            flags: Array.isArray(parsed.flags) ? parsed.flags : ["Failed to parse security flags accurately."]
+        };
     } catch (e) {
         return { status: "flagged", flags: ["Failed to parse security assessment from AI."] };
     }
@@ -299,7 +316,11 @@ Current context: ${JSON.stringify(context)}`;
         { role: 'user', content: query }
     ];
 
-    while (true) {
+    let iterationCount = 0;
+    const MAX_ITERATIONS = 10;
+
+    while (iterationCount < MAX_ITERATIONS) {
+        iterationCount++;
         const chatResponse = await client.chat.complete({
             model: model,
             messages: messages,
@@ -325,6 +346,14 @@ Current context: ${JSON.stringify(context)}`;
             let body = null;
 
             try {
+                // Ensure dangerous tools are explicitly confirmed by the user in the UI
+                const dangerousTools = ["merge_pr", "close_pr", "reopen_pr", "submit_review", "track_repo"];
+                if (dangerousTools.includes(functionName)) {
+                    if (!context.forceTool || context.forceTool.tool !== functionName) {
+                        return `UI_CONFIRMATION_NEEDED:${functionName}:${JSON.stringify(functionArgs)}`;
+                    }
+                }
+
                 if (functionName === "merge_pr") {
                     url = `${backendBaseUrl}/api/prs/${functionArgs.prId}/merge`;
                 } else if (functionName === "close_pr") {
@@ -419,4 +448,6 @@ Current context: ${JSON.stringify(context)}`;
             });
         }
     }
+
+    return "Agent reached maximum iterations and stopped to prevent an infinite loop.";
 };

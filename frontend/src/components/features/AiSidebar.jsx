@@ -61,9 +61,19 @@ export default function AiSidebar({ open, onClose }) {
         { withCredentials: true }
       );
 
+      let content = res.data?.message || "No response from AI.";
+      let action = null;
+      if (typeof content === "string" && content.startsWith("UI_CONFIRMATION_NEEDED:")) {
+          const parts = content.split(":");
+          const tool = parts[1];
+          const args = parts.slice(2).join(":");
+          action = { tool, args: JSON.parse(args) };
+          content = `I need your permission to run **${tool}**.`;
+      }
+
       setMessages((prev) => [
         ...prev,
-        { role: "ai", content: res.data?.message || "No response from AI." },
+        { role: "ai", content, action },
       ]);
     } catch (err) {
       console.error("AI request failed", err);
@@ -74,6 +84,38 @@ export default function AiSidebar({ open, onClose }) {
           content: "⚠️ Something went wrong. Please try again.",
         },
       ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmAction = async (action) => {
+    setMessages((prev) => [...prev, { role: "user", content: `(Confirmed execution of ${action.tool})` }]);
+    setLoading(true);
+    try {
+      const context = {};
+      if (activeRepository) {
+        context.activeRepo = {
+          id: activeRepository.id,
+          name: activeRepository.name,
+          owner: activeRepository.owner,
+          fullName: activeRepository.fullName,
+        };
+      }
+      if (user) context.username = user.username;
+      
+      context.forceTool = action;
+
+      const res = await axios.post(
+        `${serverEndpoint}/api/ai/agent`,
+        { query: `I confirm the execution of the tool ${action.tool} with these arguments: ${JSON.stringify(action.args)}. Please execute it now.`, context },
+        { withCredentials: true }
+      );
+
+      let content = res.data?.message || "No response from AI.";
+      setMessages((prev) => [...prev, { role: "ai", content }]);
+    } catch(err) {
+      setMessages((prev) => [...prev, { role: "ai", content: "⚠️ Something went wrong." }]);
     } finally {
       setLoading(false);
     }
@@ -171,6 +213,26 @@ export default function AiSidebar({ open, onClose }) {
                   >
                     {msg.content}
                   </ReactMarkdown>
+                  {msg.action && (
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        onClick={() => confirmAction(msg.action)}
+                        className="rounded bg-green-500/20 px-3 py-1 text-xs font-medium text-green-400 hover:bg-green-500/30 transition-colors"
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        onClick={() => {
+                          setMessages(prev => [...prev, { role: "user", content: `Cancelled ${msg.action.tool}` }]);
+                          msg.action = null;
+                        }}
+                        className="rounded bg-red-500/20 px-3 py-1 text-xs font-medium text-red-400 hover:bg-red-500/30 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                </>
                 ) : (
                   <p>{msg.content}</p>
                 )}

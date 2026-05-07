@@ -5,9 +5,11 @@
 
 const jwt = require("jsonwebtoken");
 const db = require("./db");
-const { decrypt } = require("./decrypt");
+const axios = require("axios");
 
 const JWT_SECRET = process.env.JWT_SECRET;
+const INTERNAL_SECRET = process.env.INTERNAL_SECRET;
+const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || "http://auth:5001";
 
 async function resolveGithubToken(req, options = {}) {
     const { required = false } = options;
@@ -29,7 +31,10 @@ async function resolveGithubToken(req, options = {}) {
     if (token) {
         let decoded;
         try {
-            decoded = jwt.verify(token, JWT_SECRET);
+            decoded = jwt.verify(token, JWT_SECRET, {
+                issuer: "pr-tracker-auth",
+                audience: "pr-tracker-system"
+            });
             console.log(`[resolveGithubToken] JWT decoded ok, githubId: ${decoded?.githubId}`);
         } catch (err) {
             console.warn("[resolveGithubToken] JWT verification failed:", err.message);
@@ -43,11 +48,16 @@ async function resolveGithubToken(req, options = {}) {
 
                 if (user?.accessTokenEncrypted) {
                     try {
-                        const ghToken = decrypt(user.accessTokenEncrypted);
+                        const { data } = await axios.post(
+                            `${AUTH_SERVICE_URL}/api/auth/internal/decrypt`,
+                            { encryptedToken: user.accessTokenEncrypted },
+                            { headers: { "x-internal-secret": INTERNAL_SECRET } }
+                        );
+                        const ghToken = data.token;
                         console.log(`[resolveGithubToken] Decrypted GitHub token ok, length: ${ghToken?.length}`);
                         return ghToken;
                     } catch (decryptErr) {
-                        console.error("[resolveGithubToken] Decryption FAILED:", decryptErr.message);
+                        console.error("[resolveGithubToken] Decryption FAILED:", decryptErr.response?.data || decryptErr.message);
                         const err = new Error("Failed to decrypt your stored GitHub token. Please re-authenticate.");
                         err.status = 401;
                         throw err;
@@ -68,11 +78,7 @@ async function resolveGithubToken(req, options = {}) {
         }
     }
 
-    // 3. No JWT present — fall back to env token (dev/CLI/webhook use only)
-    if (process.env.GITHUB_TOKEN) {
-        console.warn("[resolveGithubToken] No user JWT — using server-level GITHUB_TOKEN fallback.");
-        return process.env.GITHUB_TOKEN;
-    }
+    // Fallback removed due to security risk. Webhooks/internal calls that need a token must be rearchitected or explicitly handled.
 
     if (required) {
         console.error("[resolveGithubToken] No token available and required=true — throwing 401");

@@ -19,17 +19,8 @@ app.use(
   })
 );
 
-const repoRoutes = require('./routes/repoRoutes')
-
-
-
 app.use(express.json());
 app.use(cookieParser());
 
-// routes
 app.use("/api/auth", authRoutes);
-
-app.use("/api", repoRoutes);
-
-
 module.exports = app;

@@ -4,19 +4,21 @@ const db = require("../services/db");
 // POST /api/webhooks/github
 exports.handleGithubWebhook = async (req, res) => {
     const secret = process.env.GITHUB_WEBHOOK_SECRET;
-    if (secret) {
-        const sig = req.headers["x-hub-signature-256"];
-        if (!sig) return res.status(401).json({ error: "Missing signature" });
+    if (!secret) {
+        return res.status(500).json({ error: "Webhook secret not configured" });
+    }
 
-        const raw = req.rawBody || Buffer.from(JSON.stringify(req.body));
-        const expected = `sha256=${crypto.createHmac("sha256", secret).update(raw).digest("hex")}`;
+    const sig = req.headers["x-hub-signature-256"];
+    if (!sig) return res.status(401).json({ error: "Missing signature" });
 
-        const sigBuf = Buffer.from(String(sig));
-        const expectedBuf = Buffer.from(expected);
+    const raw = req.rawBody || Buffer.from(JSON.stringify(req.body));
+    const expected = `sha256=${crypto.createHmac("sha256", secret).update(raw).digest("hex")}`;
 
-        if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
-            return res.status(401).json({ error: "Invalid signature" });
-        }
+    const sigBuf = Buffer.from(String(sig));
+    const expectedBuf = Buffer.from(expected);
+
+    if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+        return res.status(401).json({ error: "Invalid signature" });
     }
 
     const event = req.headers["x-github-event"];

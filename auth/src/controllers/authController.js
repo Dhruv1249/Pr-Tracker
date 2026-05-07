@@ -17,7 +17,15 @@ const dbClient = axios.create({
 
 // redirect to github
 exports.githubLogin = (req, res) => {
-  const url = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&scope=user repo`;
+  const crypto = require("crypto");
+  const state = crypto.randomBytes(16).toString("hex");
+  res.cookie("oauth_state", state, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 10 * 60 * 1000, // 10 minutes
+    sameSite: 'lax'
+  });
+  const url = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&scope=user repo&state=${state}`;
   res.redirect(url);
 };
 
@@ -25,6 +33,14 @@ exports.githubLogin = (req, res) => {
 exports.githubCallback = async (req, res) => {
   try {
     const code = req.query.code;
+    const state = req.query.state;
+    const storedState = req.cookies.oauth_state;
+
+    res.clearCookie("oauth_state");
+
+    if (!state || !storedState || state !== storedState) {
+        return res.status(403).send("Invalid OAuth state. Possible CSRF attack.");
+    }
 
     // get token from github
     const accessToken = await getAccessToken(code);
@@ -73,4 +89,26 @@ exports.githubCallback = async (req, res) => {
     console.log(error?.response?.data || error);
     res.send("Login failed");
   }
+};
+
+// internal decrypt endpoint for backend
+exports.internalDecrypt = (req, res) => {
+    const internalSecret = req.headers["x-internal-secret"];
+    if (!INTERNAL_SECRET || internalSecret !== INTERNAL_SECRET) {
+        return res.status(403).json({ error: "Forbidden: Invalid internal secret" });
+    }
+
+    const { encryptedToken } = req.body;
+    if (!encryptedToken) {
+        return res.status(400).json({ error: "Missing encrypted token" });
+    }
+
+    try {
+        const { decrypt } = require("../services/encryptionService");
+        const plaintext = decrypt(encryptedToken);
+        res.json({ token: plaintext });
+    } catch (err) {
+        console.error("Failed to decrypt token in auth service:", err.message);
+        res.status(500).json({ error: "Decryption failed" });
+    }
 };

@@ -109,11 +109,13 @@ exports.trackRepo = async (req, res) => {
             }
         }
 
-        // Register webhook for real-time updates
-        try {
-            await github.createRepoWebhook(owner, name, token);
-        } catch (err) {
-            console.warn(`[trackRepo] Webhook registration failed: ${err.message}`);
+        // Register webhook for real-time updates only if not already active
+        if (!existing || !existing.isActive) {
+            try {
+                await github.createRepoWebhook(owner, name, token);
+            } catch (err) {
+                console.warn(`[trackRepo] Webhook registration failed: ${err.message}`);
+            }
         }
 
         // Import all PRs
@@ -125,16 +127,21 @@ exports.trackRepo = async (req, res) => {
             else if (ghPr.state === "closed") state = "closed";
             else if (ghPr.draft) state = "draft";
 
-            // Check if PR already exists
             try {
-                await db.getPRByGithubId(ghPr.id, req);
-                // Already exists, update it
-                await db.updatePR(ghPr.id, {
-                    title: ghPr.title,
-                    state,
-                    updatedAtGithub: ghPr.updated_at,
-                    mergedAt: ghPr.merged_at || null,
-                }, req);
+                const existingPR = await db.getPRByGithubId(ghPr.id, req);
+                // Conflict resolution: only update if incoming data is newer
+                const incomingDate = new Date(ghPr.updated_at).getTime();
+                const existingDate = new Date(existingPR.updatedAtGithub || 0).getTime();
+                
+                if (incomingDate > existingDate) {
+                    // Already exists and needs update, update it
+                    await db.updatePR(ghPr.id, {
+                        title: ghPr.title,
+                        state,
+                        updatedAtGithub: ghPr.updated_at,
+                        mergedAt: ghPr.merged_at || null,
+                    }, req);
+                }
             } catch (e) {
                 if (e.status === 404) {
                     await db.createPR({
@@ -221,14 +228,20 @@ exports.syncRepo = async (req, res) => {
             else if (ghPr.draft) state = "draft";
 
             try {
-                await db.getPRByGithubId(ghPr.id, req);
-                await db.updatePR(ghPr.id, {
-                    title: ghPr.title,
-                    state,
-                    updatedAtGithub: ghPr.updated_at,
-                    mergedAt: state === "merged" ? ghPr.merged_at : undefined,
-                }, req);
-                updated++;
+                const existingPR = await db.getPRByGithubId(ghPr.id, req);
+                // Conflict resolution: only update if incoming data is newer
+                const incomingDate = new Date(ghPr.updated_at).getTime();
+                const existingDate = new Date(existingPR.updatedAtGithub || 0).getTime();
+
+                if (incomingDate > existingDate) {
+                    await db.updatePR(ghPr.id, {
+                        title: ghPr.title,
+                        state,
+                        updatedAtGithub: ghPr.updated_at,
+                        mergedAt: state === "merged" ? ghPr.merged_at : undefined,
+                    }, req);
+                    updated++;
+                }
             } catch (e) {
                 if (e.status === 404) {
                     await db.createPR({
