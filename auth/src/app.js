@@ -22,5 +22,6 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
+app.get("/health", (req, res) => res.json({ status: "ok", service: "auth" }));
 app.use("/api/auth", authRoutes);
 module.exports = app;

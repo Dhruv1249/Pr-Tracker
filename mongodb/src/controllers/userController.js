@@ -4,6 +4,7 @@ const User = require('../models/User');
 
 const userController = {
   async createUser(req, res, next) {
+    console.log(`[userController] Creating user with githubId: ${req.body.githubId}`);
     try {
       const user = await userService.createUser(req.body);
       res.status(201).json({ success: true, data: user });
@@ -13,6 +14,7 @@ const userController = {
   },
 
   async getUserByGithubId(req, res, next) {
+    console.log(`[userController] Fetching user by githubId: ${req.params.githubId}`);
     try {
       const user = await userService.findUserByGithubId(req.params.githubId);
       if (!user) {

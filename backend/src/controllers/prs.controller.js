@@ -5,10 +5,12 @@ const { resolveGithubToken } = require("../services/userToken");
 
 // GET /api/prs/:prId
 exports.getPrDetails = async (req, res) => {
+    console.log(`[prs.controller] GET /api/prs/${req.params.prId}`);
     try {
         const pr = await db.getPRById(req.params.prId, req);
         res.json(pr);
     } catch (err) {
+        console.error(`[prs.controller] GET /api/prs/${req.params.prId} FAILED: ${err.message}`);
         if (err.status === 404) return res.status(404).json({ error: "PR not found" });
         res.status(err.status || 500).json({ error: err.message });
     }
@@ -16,6 +18,7 @@ exports.getPrDetails = async (req, res) => {
 
 // GET /api/prs/:prId/conflicts
 exports.checkConflicts = async (req, res) => {
+    console.log(`[prs.controller] GET /api/prs/${req.params.prId}/conflicts`);
     try {
         const token = await resolveGithubToken(req, { required: true });
         const pr = await db.getPRById(req.params.prId, req);
@@ -29,6 +32,7 @@ exports.checkConflicts = async (req, res) => {
             mergeable_state: ghPr.mergeable_state,
         });
     } catch (err) {
+        console.error(`[prs.controller] GET /api/prs/${req.params.prId}/conflicts FAILED: ${err.message}`);
         if (err.status === 404) return res.status(404).json({ error: "PR not found" });
         res.status(err.status || 500).json({ error: err.message });
     }
@@ -36,6 +40,7 @@ exports.checkConflicts = async (req, res) => {
 
 // GET /api/prs/:prId/diff
 exports.getPrDiff = async (req, res) => {
+    console.log(`[prs.controller] GET /api/prs/${req.params.prId}/diff`);
     try {
         const token = await resolveGithubToken(req, { required: true });
         const pr = await db.getPRById(req.params.prId, req);
@@ -46,6 +51,7 @@ exports.getPrDiff = async (req, res) => {
         const diff = await github.getPullRequestDiff(ownerLogin, repo.name, pr.number, token);
         res.type("text/plain").send(diff);
     } catch (err) {
+        console.error(`[prs.controller] GET /api/prs/${req.params.prId}/diff FAILED: ${err.message}`);
         if (err.status === 404) return res.status(404).json({ error: "PR not found" });
         res.status(err.status || 500).json({ error: err.message });
     }
@@ -53,6 +59,7 @@ exports.getPrDiff = async (req, res) => {
 
 // POST /api/prs/:prId/merge
 exports.mergePr = async (req, res) => {
+    console.log(`[prs.controller] Attempting to merge PR ID: ${req.params.prId}`);
     try {
         const token = await resolveGithubToken(req, { required: true });
         const pr = await db.getPRById(req.params.prId, req);
@@ -63,6 +70,7 @@ exports.mergePr = async (req, res) => {
         if (!repo) return res.status(404).json({ error: "Repo not found" });
 
         const ownerLogin = repo.owner?.login || repo.fullName.split("/")[0];
+        console.log(`[prs.controller] Merging ${ownerLogin}/${repo.name} PR #${pr.number}`);
         await github.mergePullRequest(ownerLogin, repo.name, pr.number, token);
         const updated = await db.mergePRInDb(pr.githubId, req);
         await db.createAuditLog({
@@ -73,6 +81,7 @@ exports.mergePr = async (req, res) => {
         }, req).catch(console.error);
         res.json({ message: "PR merged", pr: updated });
     } catch (err) {
+        console.error(`[prs.controller] Merge PR FAILED: ${err.message}`);
         if (err.status === 404) return res.status(404).json({ error: "PR not found" });
         res.status(err.status || 500).json({ error: err.message });
     }
@@ -80,6 +89,7 @@ exports.mergePr = async (req, res) => {
 
 // POST /api/prs/:prId/close
 exports.closePr = async (req, res) => {
+    console.log(`[prs.controller] POST /api/prs/${req.params.prId}/close`);
     try {
         const token = await resolveGithubToken(req, { required: true });
         const pr = await db.getPRById(req.params.prId, req);
@@ -99,6 +109,7 @@ exports.closePr = async (req, res) => {
         }, req).catch(console.error);
         res.json({ message: "PR closed", pr: updated });
     } catch (err) {
+        console.error(`[prs.controller] POST /api/prs/${req.params.prId}/close FAILED: ${err.message}`);
         if (err.status === 404) return res.status(404).json({ error: "PR not found" });
         res.status(err.status || 500).json({ error: err.message });
     }
@@ -106,6 +117,7 @@ exports.closePr = async (req, res) => {
 
 // POST /api/prs/:prId/reopen
 exports.reopenPr = async (req, res) => {
+    console.log(`[prs.controller] POST /api/prs/${req.params.prId}/reopen`);
     try {
         const token = await resolveGithubToken(req, { required: true });
         const pr = await db.getPRById(req.params.prId, req);
@@ -125,6 +137,7 @@ exports.reopenPr = async (req, res) => {
         }, req).catch(console.error);
         res.json({ message: "PR reopened", pr: updated });
     } catch (err) {
+        console.error(`[prs.controller] POST /api/prs/${req.params.prId}/reopen FAILED: ${err.message}`);
         if (err.status === 404) return res.status(404).json({ error: "PR not found" });
         res.status(err.status || 500).json({ error: err.message });
     }
@@ -132,6 +145,7 @@ exports.reopenPr = async (req, res) => {
 
 // POST /api/prs/:prId/reviews
 exports.submitReview = async (req, res) => {
+    console.log(`[prs.controller] POST /api/prs/${req.params.prId}/reviews`);
     try {
         const token = await resolveGithubToken(req, { required: true });
         const pr = await db.getPRById(req.params.prId, req);
@@ -178,6 +192,7 @@ exports.submitReview = async (req, res) => {
 
         res.status(201).json(review);
     } catch (err) {
+        console.error(`[prs.controller] POST /api/prs/${req.params.prId}/reviews FAILED: ${err.message}`);
         if (err.status === 404) return res.status(404).json({ error: "PR not found" });
         res.status(err.status || 500).json({ error: err.message });
     }
@@ -232,6 +247,7 @@ exports.removeTag = async (req, res) => {
 
 // POST /api/prs/:prId/analyze — Run AI analysis on a PR and store results
 exports.analyzePr = async (req, res) => {
+    console.log(`[prs.controller] POST /api/prs/${req.params.prId}/analyze`);
     try {
         const token = await resolveGithubToken(req, { required: true });
         const pr = await db.getPRById(req.params.prId, req);
@@ -258,6 +274,7 @@ exports.analyzePr = async (req, res) => {
 
         res.json({ message: "AI analysis complete", pr: updated });
     } catch (err) {
+        console.error(`[prs.controller] POST /api/prs/${req.params.prId}/analyze FAILED: ${err.message}`);
         if (err.status === 404) return res.status(404).json({ error: "PR not found" });
         res.status(err.status || 500).json({ error: err.message });
     }

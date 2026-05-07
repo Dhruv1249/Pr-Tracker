@@ -8,6 +8,10 @@ import securityRoutes from "./routes/security.route.js";
 const app = express();
 
 app.use(express.json());
+app.use((req, res, next) => {
+  console.log(`[ai-agent] ${req.method} ${req.url}`);
+  next();
+});
 
 
 app.use(cors({ origin: process.env.PROXY_URL, credentials: true }));

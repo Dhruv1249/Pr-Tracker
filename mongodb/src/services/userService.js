@@ -41,6 +41,8 @@ class UserService {
       }
       const query = { githubId: githubIdNumber };
 
+      console.log(`[userService] Updating user githubId: ${githubIdNumber}, update keys:`, Object.keys(updateData));
+      
       return await User.findOneAndUpdate(
         query,
         updateData,

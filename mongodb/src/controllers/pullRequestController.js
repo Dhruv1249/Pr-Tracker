@@ -2,15 +2,18 @@ const { pullRequestService } = require('../services');
 
 const pullRequestController = {
   async createPullRequest(req, res, next) {
+    console.log(`[pullRequestController] createPullRequest: ${req.body.number} in repo ${req.body.repository}`);
     try {
       const pullRequest = await pullRequestService.createPullRequest(req.body);
       res.status(201).json({ success: true, data: pullRequest });
     } catch (error) {
+      console.error(`[pullRequestController] createPullRequest FAILED: ${error.message}`);
       next(error);
     }
   },
 
   async getPullRequestByGithubId(req, res, next) {
+    console.log(`[pullRequestController] getPullRequestByGithubId: ${req.params.githubId}`);
     try {
       const pullRequest = await pullRequestService.findPullRequestByGithubId(req.params.githubId);
       if (!pullRequest) {
@@ -18,6 +21,7 @@ const pullRequestController = {
       }
       res.json({ success: true, data: pullRequest });
     } catch (error) {
+      console.error(`[pullRequestController] getPullRequestByGithubId FAILED: ${error.message}`);
       next(error);
     }
   },
@@ -35,6 +39,7 @@ const pullRequestController = {
   },
 
   async updatePullRequest(req, res, next) {
+    console.log(`[pullRequestController] updatePullRequest: ${req.params.githubId}`);
     try {
       const pullRequest = await pullRequestService.updatePullRequest(req.params.githubId, req.body);
       if (!pullRequest) {
@@ -42,6 +47,7 @@ const pullRequestController = {
       }
       res.json({ success: true, data: pullRequest });
     } catch (error) {
+      console.error(`[pullRequestController] updatePullRequest FAILED: ${error.message}`);
       next(error);
     }
   },
@@ -68,10 +74,12 @@ const pullRequestController = {
   },
 
   async getPullRequestsByRepository(req, res, next) {
+    console.log(`[pullRequestController] getPullRequestsByRepository: ${req.params.repositoryId}`);
     try {
       const pullRequests = await pullRequestService.getPullRequestsByRepository(req.params.repositoryId);
       res.json({ success: true, data: pullRequests, count: pullRequests.length });
     } catch (error) {
+      console.error(`[pullRequestController] getPullRequestsByRepository FAILED: ${error.message}`);
       next(error);
     }
   },

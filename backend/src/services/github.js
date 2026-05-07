@@ -8,21 +8,25 @@
 
 const BASE = "https://api.github.com";
 
-function headers(token) {
+function headers(token, path = "unknown") {
     const h = {
         Accept: "application/vnd.github+json",
         "User-Agent": "pr-tracker-core",
     };
     const t = token || process.env.GITHUB_TOKEN;
     if (t) {
+        const masked = t.length > 8 ? `${t.substring(0, 4)}...${t.substring(t.length - 4)}` : "****";
+        console.log(`[github] API Call: ${path} with token: ${masked}`);
         h.Authorization = `Bearer ${t}`;
+    } else {
+        console.warn(`[github] API Call: ${path} WITHOUT token!`);
     }
     return h;
 }
 
 async function ghFetch(path, token, opts = {}) {
     const res = await fetch(`${BASE}${path}`, {
-        headers: { ...headers(token), ...opts.headers },
+        headers: { ...headers(token, path), ...opts.headers },
         ...opts,
     });
     if (!res.ok) {

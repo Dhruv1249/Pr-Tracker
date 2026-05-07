@@ -4,6 +4,7 @@ const { resolveGithubToken } = require("../services/userToken");
 
 // GET /api/repos
 exports.listRepos = async (req, res) => {
+    console.log(`[repos.controller] GET /api/repos (page: ${req.query.page || 1})`);
     try {
         const token = await resolveGithubToken(req, { required: true });
         const repos = await github.listUserRepos(Number(req.query.page) || 1, 30, token);
@@ -31,6 +32,7 @@ exports.listRepos = async (req, res) => {
             })
         );
     } catch (err) {
+        console.error(`[repos.controller] GET /api/repos FAILED: ${err.message}`);
         res.status(err.status || 500).json({ error: err.message });
     }
 };
@@ -168,6 +170,7 @@ async function performTrack(owner, name, token, req) {
 // POST /api/repos/track
 exports.trackRepo = async (req, res) => {
     const { owner, name } = req.body;
+    console.log(`[repos.controller] POST /api/repos/track for ${owner}/${name}`);
     if (!owner || !name) return res.status(400).json({ error: "owner and name are required" });
 
     try {
@@ -175,6 +178,7 @@ exports.trackRepo = async (req, res) => {
         const repo = await performTrack(owner, name, token, req);
         res.status(201).json({ repo });
     } catch (err) {
+        console.error(`[repos.controller] POST /api/repos/track FAILED for ${owner}/${name}: ${err.message}`);
         res.status(err.status || 500).json({ error: err.message });
     }
 };
@@ -220,6 +224,7 @@ exports.untrackRepo = async (req, res) => {
 
 // GET /api/repos/tracked
 exports.listTrackedRepos = async (req, res) => {
+    console.log(`[repos.controller] GET /api/repos/tracked`);
     try {
         const repos = await db.getAllRepos(req);
         res.json(repos.filter((r) => r.isActive).map(r => ({
@@ -227,12 +232,14 @@ exports.listTrackedRepos = async (req, res) => {
             repoId: r._id // Ensure repoId is explicitly available
         })));
     } catch (err) {
+        console.error(`[repos.controller] GET /api/repos/tracked FAILED: ${err.message}`);
         res.status(err.status || 500).json({ error: err.message });
     }
 };
 
 // POST /api/repos/:repoId/sync
 exports.syncRepo = async (req, res) => {
+    console.log(`[repos.controller] POST /api/repos/${req.params.repoId}/sync`);
     try {
         const token = await resolveGithubToken(req, { required: true });
         let repo = await db.getRepoById(req.params.repoId, req).catch(() => null);
@@ -301,8 +308,10 @@ exports.syncRepo = async (req, res) => {
         }
 
         await db.updateRepo(repo.githubId, { lastSyncedAt: new Date().toISOString() }, req);
+        console.log(`[repos.controller] Sync complete for ${repo.fullName}: created ${created}, updated ${updated}`);
         res.json({ message: "Sync complete", created, updated });
     } catch (err) {
+        console.error(`[repos.controller] POST /api/repos/${req.params.repoId}/sync FAILED: ${err.message}`);
         if (err.status === 404) return res.status(404).json({ error: "Repo not found" });
         res.status(err.status || 500).json({ error: err.message });
     }

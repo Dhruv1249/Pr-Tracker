@@ -18,8 +18,12 @@ const PORT = process.env.PORT;
 
 
 app.use(cookieParser());
-app.use(
-    express.json({
+app.use((req, res, next) => {
+    console.log(`[backend] ${req.method} ${req.url}`);
+    next();
+});
+
+app.use(express.json({
         verify: (req, _res, buf) => {
             // Preserve raw body for webhook signature verification
             req.rawBody = buf;

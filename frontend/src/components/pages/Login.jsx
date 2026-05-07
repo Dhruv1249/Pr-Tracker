@@ -9,7 +9,9 @@ export default function LoginPage() {
   const handleConnect = () => {
     try {
       setLoading(true);
-      window.location.href = `${serverEndpoint}/api/auth/github`;
+      const url = `${serverEndpoint}/api/auth/github`;
+      console.log("[Login] Redirecting to:", url);
+      window.location.href = url;
       
     } catch (error) {
       console.log(error);
@@ -61,11 +63,11 @@ export default function LoginPage() {
           <div className="space-y-3 text-sm">
             <Permission
               icon={GitPullRequest}
-              text="Read pull requests and repositories"
+              text="Read/Write access to repositories"
             />
             <Permission
               icon={ShieldCheck}
-              text="No write access without approval"
+              text="Manage PRs and submit reviews"
             />
           </div>
         </div>

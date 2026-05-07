@@ -17,6 +17,7 @@ const dbClient = axios.create({
 
 // redirect to github
 exports.githubLogin = (req, res) => {
+  console.log("[auth] Initiating GitHub login flow...");
   const crypto = require("crypto");
   const state = crypto.randomBytes(16).toString("hex");
   res.cookie("oauth_state", state, {
@@ -25,12 +26,13 @@ exports.githubLogin = (req, res) => {
     maxAge: 10 * 60 * 1000, // 10 minutes
     sameSite: 'lax'
   });
-  const url = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&scope=user repo&state=${state}`;
+  const url = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&scope=repo%20user:email&state=${state}`;
   res.redirect(url);
 };
 
 // callback 
 exports.githubCallback = async (req, res) => {
+  console.log(`[auth] Received github callback with code: ${req.query.code ? 'present' : 'missing'}, state: ${req.query.state}`);
   try {
     const code = req.query.code;
     const state = req.query.state;
@@ -43,7 +45,14 @@ exports.githubCallback = async (req, res) => {
     }
 
     // get token from github
-    const accessToken = await getAccessToken(code);
+    const { accessToken, scope } = await getAccessToken(code);
+
+    // Verify scope for write access
+    const scopes = scope ? scope.split(/[ ,]+/).map(s => s.trim()) : [];
+    if (!scopes.includes("repo")) {
+        console.error(`[auth] Error: User did not grant 'repo' scope. Granted scopes: ${scope}`);
+        return res.status(403).send("Write access (repo scope) is required for this application. Please try again and grant the requested permissions.");
+    }
 
     // get user info
     const githubUser = await getGithubUser(accessToken);
@@ -60,6 +69,7 @@ exports.githubCallback = async (req, res) => {
     }
 
     if (!user) {
+      console.log(`[auth] Creating new user for githubId: ${githubUser.id}`);
       const { data } = await dbClient.post("/api/db/users", {
         githubId: githubUser.id,
         username: githubUser.login,
@@ -69,12 +79,18 @@ exports.githubCallback = async (req, res) => {
       });
       user = data.data;
     } else {
+      console.log(`[auth] Updating existing user ${user._id} (githubId: ${githubUser.id}) with new token.`);
       const { data } = await dbClient.put(`/api/db/users/github/${githubUser.id}`, {
         githubId: githubUser.id,
         username: githubUser.login,
         accessTokenEncrypted: encryptedToken,
       });
       user = data.data;
+    }
+    
+    if (accessToken) {
+       const masked = accessToken.length > 8 ? `${accessToken.substring(0, 4)}...${accessToken.substring(accessToken.length - 4)}` : "****";
+       console.log(`[auth] Token stored for user ${user._id}: ${masked}`);
     }
 
     // create jwt
@@ -95,6 +111,7 @@ exports.githubCallback = async (req, res) => {
 
 // internal decrypt endpoint for backend
 exports.internalDecrypt = (req, res) => {
+    console.log("[auth] Received internal decrypt request");
     const internalSecret = req.headers["x-internal-secret"];
     if (!INTERNAL_SECRET || internalSecret !== INTERNAL_SECRET) {
         return res.status(403).json({ error: "Forbidden: Invalid internal secret" });

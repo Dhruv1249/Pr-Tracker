@@ -118,6 +118,7 @@ ${diff}`;
 const backendBaseUrl = process.env.CORE_SERVICE_URL || 'http://localhost:5002';
 
 export const agentChat = async (query, context = {}, userId, githubId) => {
+    console.log(`[agentChat] New query: "${query}" for user: ${userId} (${githubId})`);
     // Defines tools that correspond to the main backend API
     const tools = [
         {
@@ -321,6 +322,7 @@ Current context: ${JSON.stringify(context)}`;
 
     while (iterationCount < MAX_ITERATIONS) {
         iterationCount++;
+        console.log(`[agentChat] Iteration ${iterationCount}, sending ${messages.length} messages to AI.`);
         const chatResponse = await client.chat.complete({
             model: model,
             messages: messages,
@@ -413,7 +415,6 @@ Current context: ${JSON.stringify(context)}`;
                         console.error(`[agent] Tool call ${functionName} failed: ${text}`);
                     }
 
-                    
                     // Audit log the AI tool execution
                     try {
                         const auditUrl = `${process.env.PROXY_URL}/api/db/audit`;

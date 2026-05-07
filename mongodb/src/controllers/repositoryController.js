@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 
 const repositoryController = {
   async createRepository(req, res, next) {
+    console.log(`[repositoryController] createRepository: ${req.body.fullName}`);
     try {
       const repoData = { ...req.body };
       const userId = req.headers['x-user-id'];
@@ -16,6 +17,7 @@ const repositoryController = {
       const repository = await repositoryService.createRepository(repoData);
       res.status(201).json({ success: true, data: repository });
     } catch (error) {
+      console.error(`[repositoryController] createRepository FAILED for ${req.body.fullName}: ${error.message}`);
       next(error);
     }
   },
@@ -101,8 +103,9 @@ const repositoryController = {
   },
 
   async getRepositoryByFullName(req, res, next) {
+    const fullName = decodeURIComponent(req.params.fullName);
+    console.log(`[repositoryController] getRepositoryByFullName: ${fullName}`);
     try {
-      const fullName = decodeURIComponent(req.params.fullName);
       const repository = await repositoryService.findRepositoryByFullName(fullName);
       if (!repository) {
         return res.status(404).json({ success: false, error: 'Repository not found' });
@@ -113,6 +116,7 @@ const repositoryController = {
       }
       res.json({ success: true, data: repository });
     } catch (error) {
+      console.error(`[repositoryController] getRepositoryByFullName FAILED for ${fullName}: ${error.message}`);
       next(error);
     }
   },

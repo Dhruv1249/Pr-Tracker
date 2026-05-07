@@ -3,6 +3,7 @@ import { agentChat } from "../ai/mistral.js";
 const agentController = {
     interact: async (req, res) => {
         const { query, context } = req.body;
+        console.log(`[agentController] Received query: "${query}" from user: ${req.headers["x-user-github-id"] || "unknown"}`);
         const userId = req.headers["x-user-id"];
         const githubId = req.headers["x-user-github-id"];
         if (!query || typeof query !== 'string') return res.status(400).json({ error: "Query is required and must be a string" });
