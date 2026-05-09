@@ -1,6 +1,6 @@
-import { Search, ChevronRight, GitPullRequest, Sparkles } from "lucide-react";
+import { ChevronRight, GitPullRequest, Sparkles, Menu } from "lucide-react";
 import { useRepo } from "../../context/RepoContext";
-import { useLocation, Link } from "react-router-dom";
+import { useLocation, Link, useNavigate } from "react-router-dom";
 
 const ROUTE_LABELS = {
     "/dashboard": "Dashboard",
@@ -9,9 +9,10 @@ const ROUTE_LABELS = {
     "/activity": "Activity",
 };
 
-function Header({ onToggleAi, aiOpen }) {
+function Header({ onToggleAi, aiOpen, onToggleSidebar }) {
     const { activeRepository, activePr } = useRepo();
     const location = useLocation();
+    const navigate = useNavigate();
 
     /* ── Breadcrumbs ── */
     const crumbs = [];
@@ -27,6 +28,16 @@ function Header({ onToggleAi, aiOpen }) {
 
     return (
         <header className="sticky top-0 z-50 flex h-14 w-full items-center border-b border-divider bg-bg/80 backdrop-blur-md px-4 gap-4">
+
+            {/* Mobile nav */}
+            <button
+                type="button"
+                onClick={onToggleSidebar}
+                className="inline-flex rounded-md p-2 text-secondary hover:bg-hover hover:text-primary lg:hidden"
+                aria-label="Open navigation"
+            >
+                <Menu className="h-4 w-4" />
+            </button>
 
             {/* Left — Breadcrumbs */}
             <nav className="flex items-center gap-1 text-sm min-w-0 flex-1">
@@ -48,17 +59,6 @@ function Header({ onToggleAi, aiOpen }) {
                     );
                 })}
             </nav>
-
-            {/* Center — Search */}
-            <div className="flex justify-center shrink-0">
-                <div className="flex items-center gap-2 rounded-lg border border-divider bg-surface px-3 py-1.5 w-64 focus-within:border-accent/50 transition-colors">
-                    <Search className="h-3.5 w-3.5 text-secondary shrink-0" />
-                    <input
-                        placeholder="Search…"
-                        className="w-full bg-transparent text-xs text-primary placeholder:text-secondary/60 outline-none"
-                    />
-                </div>
-            </div>
 
             {/* Right — AI Toggle */}
             <div className="flex-1 flex justify-end shrink-0">

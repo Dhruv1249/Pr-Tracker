@@ -1,14 +1,15 @@
 // ---------------------------------------------------------------------------
 // GitHub REST API helper
 // All functions accept an optional `token` parameter. When provided, it's
-// used as the Bearer token for GitHub API calls. This enables per-user
-// authentication using the user's stored OAuth token.
+// used for GitHub API calls. This enables per-user authentication using the
+// user's stored OAuth token. We prefer per-user auth and retry once with the
+// alternate Authorization scheme when GitHub rejects a request.
 // Falls back to GITHUB_TOKEN env var if no token is passed.
 // ---------------------------------------------------------------------------
 
 const BASE = "https://api.github.com";
 
-function headers(token, path = "unknown") {
+function headers(token, path = "unknown", authScheme = "token") {
     const h = {
         Accept: "application/vnd.github+json",
         "User-Agent": "pr-tracker-core",
@@ -16,41 +17,58 @@ function headers(token, path = "unknown") {
     const t = token || process.env.GITHUB_TOKEN;
     if (t) {
         const masked = t.length > 8 ? `${t.substring(0, 4)}...${t.substring(t.length - 4)}` : "****";
-        console.log(`[github] API Call: ${path} with token: ${masked}`);
-        h.Authorization = `Bearer ${t}`;
+        console.log(`[github] API Call: ${path} with token: ${masked} (${authScheme})`);
+        h.Authorization = `${authScheme} ${t}`;
     } else {
         console.warn(`[github] API Call: ${path} WITHOUT token!`);
     }
     return h;
 }
 
-async function ghFetch(path, token, opts = {}) {
+function formatGithubError(res, bodyRaw) {
+    const body = bodyRaw.length > 800 ? `${bodyRaw.slice(0, 800)}…` : bodyRaw;
+
+    const limit = res.headers.get("x-ratelimit-limit");
+    const remaining = res.headers.get("x-ratelimit-remaining");
+    const reset = res.headers.get("x-ratelimit-reset");
+
+    let rateNote = "";
+    if (limit || remaining || reset) {
+        const resetDate = reset ? new Date(Number(reset) * 1000).toISOString() : "";
+        const resetPart = resetDate ? `, resets ${resetDate}` : "";
+        rateNote = ` (rate ${remaining ?? "?"}/${limit ?? "?"}${resetPart})`;
+    }
+
+    const err = new Error(`GitHub API ${res.status}: ${body}${rateNote}`);
+    err.status = res.status;
+    return err;
+}
+
+async function performGithubFetch(path, token, opts = {}, authScheme = "token") {
     const res = await fetch(`${BASE}${path}`, {
-        headers: { ...headers(token, path), ...opts.headers },
         ...opts,
+        headers: { ...headers(token, path, authScheme), ...opts.headers },
     });
+
     if (!res.ok) {
         const bodyRaw = await res.text();
-        const body = bodyRaw.length > 800 ? `${bodyRaw.slice(0, 800)}…` : bodyRaw;
-
-        const limit = res.headers.get("x-ratelimit-limit");
-        const remaining = res.headers.get("x-ratelimit-remaining");
-        const reset = res.headers.get("x-ratelimit-reset");
-
-        let rateNote = "";
-        if (limit || remaining || reset) {
-            const resetDate = reset ? new Date(Number(reset) * 1000).toISOString() : "";
-            const resetPart = resetDate ? `, resets ${resetDate}` : "";
-            rateNote = ` (rate ${remaining ?? "?"}/${limit ?? "?"}${resetPart})`;
-        }
-
-        const err = new Error(`GitHub API ${res.status}: ${body}${rateNote}`);
-        err.status = res.status;
-        throw err;
+        throw formatGithubError(res, bodyRaw);
     }
+
     const contentType = res.headers.get("content-type") || "";
     if (contentType.includes("application/json")) return res.json();
     return res.text();
+}
+
+async function ghFetch(path, token, opts = {}) {
+    try {
+        return await performGithubFetch(path, token, opts, "token");
+    } catch (err) {
+        if (err.status === 401 && token && !opts.__retriedWithBearer) {
+            return performGithubFetch(path, token, { ...opts, __retriedWithBearer: true }, "Bearer");
+        }
+        throw err;
+    }
 }
 
 /** List repos the authenticated user has access to */

@@ -11,19 +11,20 @@ export default function LoginPage() {
       setLoading(true);
       const url = `${serverEndpoint}/api/auth/github`;
       console.log("[Login] Redirecting to:", url);
-      window.location.href = url;
-      
+      window.location.assign(url);
+      return;
     } catch (error) {
       console.log(error);
-    } finally {
       setLoading(false);
     }
   };
 
   if(loading){
     return (
-      <div>
-        Loading...
+      <div className="min-h-screen bg-bg flex items-center justify-center px-6">
+        <div className="rounded-2xl border border-divider bg-surface px-6 py-8 text-center text-sm text-secondary">
+          Opening GitHub sign-in…
+        </div>
       </div>
     )
   }

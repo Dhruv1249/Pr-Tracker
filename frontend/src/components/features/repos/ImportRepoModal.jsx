@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import axios from "axios";
-import { Github, X, CheckCircle2, Loader2 } from "lucide-react";
+import { Github, Search, X, CheckCircle2, Loader2 } from "lucide-react";
 import { useRepo } from "../../../context/RepoContext";
 
 const serverEndpoint = import.meta.env.VITE_SERVER_ENDPOINT;
@@ -17,6 +17,7 @@ export function ImportRepoModal({ open, onClose }) {
     const [phase, setPhase] = useState("idle");
     const [ghRepos, setGhRepos] = useState([]);
     const [selected, setSelected] = useState([]);
+    const [search, setSearch] = useState("");
     const [importing, setImporting] = useState(false);
     const [done, setDone] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
@@ -70,8 +71,16 @@ export function ImportRepoModal({ open, onClose }) {
 
     const toggleAll = () =>
         setSelected(
-            selected.length === ghRepos.length ? [] : ghRepos.map((r) => r.githubRepoId)
+            selected.length === visibleRepos.length ? [] : visibleRepos.map((r) => r.githubRepoId)
         );
+
+    const visibleRepos = ghRepos.filter((repo) => {
+        if (!search.trim()) return true;
+        const q = search.trim().toLowerCase();
+        return [repo.name, repo.fullName, repo.owner]
+            .filter(Boolean)
+            .some((value) => String(value).toLowerCase().includes(q));
+    });
 
     /* ---------- import ---------- */
     const handleImport = async () => {
@@ -158,6 +167,24 @@ export function ImportRepoModal({ open, onClose }) {
                         Select GitHub repositories to add to PR Tracker. Repositories you've already imported are hidden.
                     </p>
 
+                    {/* Search */}
+                    {phase === "idle" && !done && ghRepos.length > 0 && (
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-2 rounded-md border border-divider bg-bg px-3 py-2 focus-within:border-accent/50 transition-colors">
+                                <Search className="h-4 w-4 text-secondary shrink-0" />
+                                <input
+                                    value={search}
+                                    onChange={(event) => setSearch(event.target.value)}
+                                    placeholder="Search repositories by name, owner, or full path…"
+                                    className="w-full bg-transparent text-sm text-primary placeholder:text-secondary outline-none"
+                                />
+                            </div>
+                            <p className="text-xs text-secondary">
+                                This only filters repos that are not already imported.
+                            </p>
+                        </div>
+                    )}
+
                     {/* ---- LOADING ---- */}
                     {phase === "loading" && (
                         <div className="flex flex-col items-center justify-center py-10 gap-3 text-secondary">
@@ -184,9 +211,11 @@ export function ImportRepoModal({ open, onClose }) {
                     {/* ---- REPO LIST ---- */}
                     {phase === "idle" && !done && (
                         <>
-                            {ghRepos.length === 0 ? (
+                            {visibleRepos.length === 0 ? (
                                 <div className="py-10 text-center text-sm text-secondary">
-                                    All your repositories are already imported! 🎉
+                                    {ghRepos.length === 0
+                                        ? "All your repositories are already imported! 🎉"
+                                        : "No repositories match your search."}
                                 </div>
                             ) : (
                                 <>
@@ -196,7 +225,7 @@ export function ImportRepoModal({ open, onClose }) {
                                             onClick={toggleAll}
                                             className="text-secondary hover:text-primary transition-colors"
                                         >
-                                            {selected.length === ghRepos.length ? "Deselect all" : "Select all"}
+                                            {selected.length === visibleRepos.length ? "Deselect all" : "Select all"}
                                         </button>
                                         <span className="text-secondary">
                                             {selected.length} selected
@@ -205,7 +234,7 @@ export function ImportRepoModal({ open, onClose }) {
 
                                     {/* Repo rows */}
                                     <div className="max-h-64 overflow-y-auto space-y-1 pr-1">
-                                        {ghRepos.map((repo) => {
+                                        {visibleRepos.map((repo) => {
                                             const isChecked = selected.includes(repo.githubRepoId);
                                             return (
                                                 <label

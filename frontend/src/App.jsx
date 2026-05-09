@@ -12,8 +12,10 @@ import axios from "axios";
 import { useState, useEffect, useCallback } from "react";
 import { timeAgo } from "./utils/timeAgo";
 import { RepoProvider, useRepo } from "./context/RepoContext";
+import { useLocation } from "react-router-dom";
 
 const serverEndpoint = import.meta.env.VITE_SERVER_ENDPOINT;
+const PUBLIC_ROUTES = ["/", "/login", "/auth/callback"];
 
 /* =========================
    Inner App (inside provider)
@@ -22,6 +24,8 @@ const serverEndpoint = import.meta.env.VITE_SERVER_ENDPOINT;
 function AppContent() {
   const [loading, setLoading] = useState(true);
   const [needsImport, setNeedsImport] = useState(false);
+  const [bootError, setBootError] = useState(null);
+  const location = useLocation();
 
   const {
     setRepos,
@@ -32,9 +36,17 @@ function AppContent() {
     setRefreshRepos,
   } = useRepo();
 
+  const isPublicRoute = PUBLIC_ROUTES.some((path) => location.pathname === path);
+
   /* ---------- LOAD DATA ---------- */
   const loadData = useCallback(async () => {
     try {
+      setBootError(null);
+
+      if (!serverEndpoint) {
+        throw new Error("VITE_SERVER_ENDPOINT is not configured.");
+      }
+
       // 1. Current user
       const userRes = await axios.get(
         `${serverEndpoint}/api/db/users/me`,
@@ -98,6 +110,11 @@ function AppContent() {
       setNeedsImport(true);
       setRepos([]);
       setActiveRepository(null);
+      setBootError(
+        error?.response?.status === 401
+          ? "Your session is not active. Please sign in again."
+          : error?.message || "Failed to load your workspace."
+      );
     }
   }, [setRepos, setActiveRepository, setUser]);
 
@@ -105,16 +122,58 @@ function AppContent() {
   useEffect(() => {
     setRefreshRepos(() => loadData);
 
+    if (isPublicRoute) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
     async function init() {
       await loadData();
       setLoading(false);
     }
 
     init();
-  }, [loadData, setRefreshRepos]);
+  }, [loadData, setRefreshRepos, isPublicRoute]);
 
   /* ---------- LOADING ---------- */
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-bg px-6">
+        <div className="w-full max-w-sm rounded-2xl border border-divider bg-surface px-6 py-8 text-center shadow-lg">
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-divider border-t-accent" />
+          <p className="mt-4 text-sm font-medium text-primary">Loading PR Tracker</p>
+          <p className="mt-1 text-xs text-secondary">Synchronizing your session and repository data.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (bootError && !isPublicRoute) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-bg px-6">
+        <div className="w-full max-w-md rounded-2xl border border-divider bg-surface p-6 text-center">
+          <h1 className="text-lg font-semibold text-primary">Workspace unavailable</h1>
+          <p className="mt-2 text-sm text-secondary">{bootError}</p>
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+            <button
+              onClick={() => window.location.reload()}
+              className="flex-1 rounded-md bg-accent px-4 py-2 text-sm font-medium text-black hover:opacity-90"
+            >
+              Try again
+            </button>
+            <a
+              href="/login"
+              className="flex-1 rounded-md border border-divider px-4 py-2 text-sm text-secondary hover:bg-hover hover:text-primary"
+            >
+              Sign in
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   /* ---------- ROUTES ---------- */
   return (

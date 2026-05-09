@@ -23,33 +23,29 @@ const repositoryController = {
   },
 
   async getRepositoryByGithubId(req, res, next) {
+    console.log(`[repositoryController] getRepositoryByGithubId: ${req.params.githubId}`);
     try {
       const repository = await repositoryService.findRepositoryByGithubId(req.params.githubId);
       if (!repository) {
         return res.status(404).json({ success: false, error: 'Repository not found' });
       }
-      const userId = req.headers['x-user-id'];
-      if (userId && !repository.users.some(u => u._id.toString() === userId || u.toString() === userId)) {
-        return res.status(403).json({ success: false, error: 'Access denied' });
-      }
       res.json({ success: true, data: repository });
     } catch (error) {
+      console.error(`[repositoryController] getRepositoryByGithubId FAILED: ${error.message}`);
       next(error);
     }
   },
 
   async getRepositoryById(req, res, next) {
+    console.log(`[repositoryController] getRepositoryById: ${req.params.id}`);
     try {
       const repository = await repositoryService.findRepositoryById(req.params.id);
       if (!repository) {
         return res.status(404).json({ success: false, error: 'Repository not found' });
       }
-      const userId = req.headers['x-user-id'];
-      if (userId && !repository.users.some(u => u._id.toString() === userId || u.toString() === userId)) {
-        return res.status(403).json({ success: false, error: 'Access denied' });
-      }
       res.json({ success: true, data: repository });
     } catch (error) {
+      console.error(`[repositoryController] getRepositoryById FAILED: ${error.message}`);
       next(error);
     }
   },
@@ -109,10 +105,6 @@ const repositoryController = {
       const repository = await repositoryService.findRepositoryByFullName(fullName);
       if (!repository) {
         return res.status(404).json({ success: false, error: 'Repository not found' });
-      }
-      const userId = req.headers['x-user-id'];
-      if (userId && !repository.users.some(u => u._id.toString() === userId || u.toString() === userId)) {
-        return res.status(403).json({ success: false, error: 'Access denied' });
       }
       res.json({ success: true, data: repository });
     } catch (error) {

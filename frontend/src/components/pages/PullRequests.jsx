@@ -14,6 +14,7 @@ export function PullRequestsPage() {
   const [prs, setPrs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
   const { activeRepository } = useRepo();
 
   // Pagination state
@@ -33,6 +34,8 @@ export function PullRequestsPage() {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
 
+    setError(null);
+
     try {
       const { owner, name } = activeRepository;
       const res = await axios.get(
@@ -50,6 +53,7 @@ export function PullRequestsPage() {
       }
     } catch (err) {
       console.error("Failed to load PRs", err);
+      setError("Unable to load pull requests right now.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -60,6 +64,10 @@ export function PullRequestsPage() {
   useEffect(() => {
     fetchPRs(false, page);
   }, [activeRepository, page, perPage]); // eslint-disable-line
+
+  useEffect(() => {
+    setSearch("");
+  }, [activeRepository]);
 
   // Reset to page 1 when repo changes
   useEffect(() => {
@@ -199,6 +207,37 @@ export function PullRequestsPage() {
             <RefreshCw className="h-4 w-4 animate-spin" />
             Loading pull requests…
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!activeRepository) {
+    return (
+      <div className="space-y-6 pt-6">
+        <div>
+          <h1 className="text-2xl font-semibold text-primary">Pull Requests</h1>
+          <p className="mt-1 text-sm text-secondary">Choose a repository to inspect its pull requests.</p>
+        </div>
+        <div className="rounded-2xl border border-divider bg-surface p-8 text-center text-sm text-secondary">
+          No repository selected.
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6 pt-6">
+        {Header}
+        <PRControls
+          view={view} setView={setView}
+          filter={filter} setFilter={setFilter}
+          search={search} setSearch={setSearch}
+          sort={sort} setSort={setSort}
+        />
+        <div className="rounded-2xl border border-divider bg-surface p-8 text-center text-sm text-secondary">
+          {error}
         </div>
       </div>
     );

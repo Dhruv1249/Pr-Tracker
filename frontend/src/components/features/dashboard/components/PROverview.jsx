@@ -30,7 +30,9 @@ export function PROverview({ prs = [], loading = false }) {
         Closed: (p) => p.status === "Closed",
     };
 
-    const filtered = mapped.filter(filterMap[filter] || (() => true)).slice(0, 4);
+    const filtered = mapped
+        .filter(filterMap[filter] || (() => true))
+        .slice(0, 4);
 
     return (
         <Card

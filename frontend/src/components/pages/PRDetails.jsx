@@ -13,6 +13,8 @@ import {
   ShieldAlert,
   Activity,
   CheckCircle2,
+  Plus,
+  X,
 } from "lucide-react";
 import { useRepo } from "../../context/RepoContext";
 import ReactMarkdown from "react-markdown";
@@ -34,12 +36,17 @@ export default function PRDetails() {
   const [files, setFiles] = useState([]);
   const [commits, setCommits] = useState([]);
   const [comments, setComments] = useState([]);
+  const [reviews, setReviews] = useState([]);
+  const [dbPr, setDbPr] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [sidebarWidth, setSidebarWidth] = useState(360);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState(null);
+  const [commentBody, setCommentBody] = useState("");
+  const [newTag, setNewTag] = useState("");
 
-  /* ---- Fetch PR data ---- */
-  useEffect(() => {
+  const loadDetails = async () => {
     if (!owner || !repoName || !prNumber) {
       setError("Missing repo context. Please navigate from the PR list.");
       setLoading(false);
@@ -47,33 +54,158 @@ export default function PRDetails() {
     }
 
     setLoading(true);
-    const base = `${serverEndpoint}/api/repos/${owner}/${repoName}/pulls/${prNumber}`;
+    setActionError(null);
 
-    Promise.allSettled([
-      axios.get(base, { withCredentials: true }),
-      axios.get(`${base}/files`, { withCredentials: true }),
-      axios.get(`${base}/commits`, { withCredentials: true }),
-      axios.get(`${base}/comments`, { withCredentials: true }),
-    ])
-      .then(([prRes, filesRes, commitsRes, commentsRes]) => {
-        if (prRes.status === "rejected") {
-          setError("Failed to load PR details. Please try again.");
-          return;
+    try {
+      const base = `${serverEndpoint}/api/repos/${owner}/${repoName}/pulls/${prNumber}`;
+      const [prRes, filesRes, commitsRes, commentsRes] = await Promise.allSettled([
+        axios.get(base, { withCredentials: true }),
+        axios.get(`${base}/files`, { withCredentials: true }),
+        axios.get(`${base}/commits`, { withCredentials: true }),
+        axios.get(`${base}/comments`, { withCredentials: true }),
+      ]);
+
+      if (prRes.status === "rejected") {
+        throw new Error("Failed to load PR details. Please try again.");
+      }
+
+      const prData = prRes.value.data;
+      setPr(prData);
+      setActivePr({ number: prData.number, title: prData.title });
+      setFiles(filesRes.status === "fulfilled" ? (filesRes.value.data || []) : []);
+      setCommits(commitsRes.status === "fulfilled" ? (commitsRes.value.data || []) : []);
+      setComments(commentsRes.status === "fulfilled" ? (commentsRes.value.data || []) : []);
+
+      try {
+        const dbPrRes = await axios.get(
+          `${serverEndpoint}/api/pullrequests/github/${prData.id}`,
+          { withCredentials: true }
+        );
+        const dbPrData = dbPrRes.data?.data || dbPrRes.data;
+        setDbPr(dbPrData);
+
+        if (dbPrData?._id) {
+          try {
+            const reviewsRes = await axios.get(
+              `${serverEndpoint}/api/prs/${dbPrData._id}/reviews`,
+              { withCredentials: true }
+            );
+            const reviewsData = reviewsRes.data?.data || reviewsRes.data || [];
+            setReviews(Array.isArray(reviewsData) ? reviewsData : []);
+          } catch (reviewsError) {
+            console.warn("Failed to load PR reviews", reviewsError);
+            setReviews([]);
+          }
+        } else {
+          setReviews([]);
         }
-        setPr(prRes.value.data);
-        setActivePr({ number: prRes.value.data.number, title: prRes.value.data.title });
-        setFiles(filesRes.status === "fulfilled" ? (filesRes.value.data || []) : []);
-        setCommits(commitsRes.status === "fulfilled" ? (commitsRes.value.data || []) : []);
-        setComments(commentsRes.status === "fulfilled" ? (commentsRes.value.data || []) : []);
-        if (commentsRes.status === "rejected") {
-          console.warn("Comments fetch failed (server may need restart):", commentsRes.reason?.message);
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to load PR details", err);
-        setError("Failed to load PR details. Please try again.");
-      })
-      .finally(() => setLoading(false));
+      } catch (dbError) {
+        console.warn("Failed to load DB PR record", dbError);
+        setDbPr(null);
+        setReviews([]);
+      }
+    } catch (err) {
+      console.error("Failed to load PR details", err);
+      setError(err?.message || "Failed to load PR details. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const runAction = async (request) => {
+    if (!dbPr?._id) {
+      throw new Error("Database PR record is not available yet.");
+    }
+
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      await request();
+      await loadDetails();
+    } catch (err) {
+      throw err;
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const submitReview = async (decision, body = "") => {
+    const comment = body.trim();
+    if (decision === "comment" && !comment) {
+      setActionError("Add a comment before submitting a comment review.");
+      return;
+    }
+
+    await runAction(() =>
+      axios.post(
+        `${serverEndpoint}/api/prs/${dbPr._id}/reviews`,
+        {
+          decision,
+          comment,
+          reviewer: pr?.user?.login || "web-user",
+        },
+        { withCredentials: true }
+      )
+    );
+  };
+
+  const submitComment = async () => {
+    const body = commentBody.trim();
+    if (!body) {
+      setActionError("Add a comment before posting.");
+      return;
+    }
+
+    await submitReview("comment", body);
+    setCommentBody("");
+  };
+
+  const addTag = async () => {
+    const tag = newTag.trim();
+    if (!tag) return;
+
+    await runAction(() =>
+      axios.post(
+        `${serverEndpoint}/api/prs/${dbPr._id}/tags`,
+        { tag },
+        { withCredentials: true }
+      )
+    );
+
+    setNewTag("");
+  };
+
+  const removeTag = async (tag) => {
+    await runAction(() =>
+      axios.delete(
+        `${serverEndpoint}/api/prs/${dbPr._id}/tags/${encodeURIComponent(tag)}`,
+        { withCredentials: true }
+      )
+    );
+  };
+
+  const mergePr = async () => {
+    if (!window.confirm("Merge this pull request?")) return;
+    await runAction(() =>
+      axios.post(`${serverEndpoint}/api/prs/${dbPr._id}/merge`, {}, { withCredentials: true })
+    );
+  };
+
+  const closePr = async () => {
+    await runAction(() =>
+      axios.post(`${serverEndpoint}/api/prs/${dbPr._id}/close`, {}, { withCredentials: true })
+    );
+  };
+
+  const reopenPr = async () => {
+    await runAction(() =>
+      axios.post(`${serverEndpoint}/api/prs/${dbPr._id}/reopen`, {}, { withCredentials: true })
+    );
+  };
+
+  /* ---- Fetch PR data ---- */
+  useEffect(() => {
+    loadDetails();
 
     return () => setActivePr(null);
   }, [owner, repoName, prNumber, setActivePr]);
@@ -137,6 +269,21 @@ export default function PRDetails() {
               files={files}
               commits={commits}
               comments={comments}
+              reviews={reviews}
+              dbPr={dbPr}
+              actionLoading={actionLoading}
+              actionError={actionError}
+              commentBody={commentBody}
+              newTag={newTag}
+              onCommentBodyChange={setCommentBody}
+              onNewTagChange={setNewTag}
+              onSubmitReview={submitReview}
+              onSubmitComment={submitComment}
+              onAddTag={addTag}
+              onRemoveTag={removeTag}
+              onMerge={mergePr}
+              onClosePr={closePr}
+              onReopen={reopenPr}
             />
           </div>
         </div>
@@ -263,7 +410,29 @@ function PRSidebar({ pr, owner, repoName, files = [] }) {
 /* =========================
    WORKSPACE
 ========================= */
-function PRWorkspace({ pr, owner, repoName, files, commits, comments }) {
+function PRWorkspace({
+  pr,
+  owner,
+  repoName,
+  files,
+  commits,
+  comments,
+  reviews,
+  dbPr,
+  actionLoading,
+  actionError,
+  commentBody,
+  newTag,
+  onCommentBodyChange,
+  onNewTagChange,
+  onSubmitReview,
+  onSubmitComment,
+  onAddTag,
+  onRemoveTag,
+  onMerge,
+  onClosePr,
+  onReopen,
+}) {
   const [tab, setTab] = useState("Files");
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState(null);
@@ -296,6 +465,7 @@ function PRWorkspace({ pr, owner, repoName, files, commits, comments }) {
     { id: "Commits", label: `Commits${commits.length > 0 ? ` (${commits.length})` : ""}` },
     { id: "Comments", label: `Comments${comments.length > 0 ? ` (${comments.length})` : ""}` },
     { id: "Analysis", label: <span className="flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5 text-purple-400" />Analysis{aiAnalysis ? <span className="ml-1 h-1.5 w-1.5 rounded-full bg-purple-400 inline-block" /> : null}</span> },
+    { id: "Actions", label: "Actions" },
   ];
 
   return (
@@ -320,7 +490,14 @@ function PRWorkspace({ pr, owner, repoName, files, commits, comments }) {
 
       {tab === "Files" && <DiffViewer files={files} />}
       {tab === "Commits" && <CommitsPanel commits={commits} />}
-      {tab === "Comments" && <CommentsPanel comments={comments} />}
+      {tab === "Comments" && (
+        <CommentsPanel
+          comments={comments}
+          commentBody={commentBody}
+          onCommentBodyChange={onCommentBodyChange}
+          onSubmitComment={onSubmitComment}
+        />
+      )}
       {tab === "Analysis" && (
         <AnalysisPanel
           analyzing={analyzing}
@@ -328,6 +505,202 @@ function PRWorkspace({ pr, owner, repoName, files, commits, comments }) {
           aiAnalysis={aiAnalysis}
           onRun={runAnalysis}
         />
+      )}
+      {tab === "Actions" && (
+        <ActionsPanel
+          pr={pr}
+          dbPr={dbPr}
+          actionLoading={actionLoading}
+          actionError={actionError}
+          newTag={newTag}
+          onNewTagChange={onNewTagChange}
+          onSubmitReview={onSubmitReview}
+          onAddTag={onAddTag}
+          onRemoveTag={onRemoveTag}
+          onMerge={onMerge}
+          onClosePr={onClosePr}
+          onReopen={onReopen}
+          reviews={reviews}
+        />
+      )}
+    </div>
+  );
+}
+
+function ActionsPanel({
+  pr,
+  dbPr,
+  reviews = [],
+  actionLoading,
+  actionError,
+  newTag,
+  onNewTagChange,
+  onSubmitReview,
+  onAddTag,
+  onRemoveTag,
+  onMerge,
+  onClosePr,
+  onReopen,
+}) {
+  const labels = pr?.labels || dbPr?.labels || [];
+
+  return (
+    <div className="space-y-4 rounded-lg border border-divider bg-surface p-4">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h3 className="text-sm font-semibold text-primary">PR Actions</h3>
+          <p className="text-xs text-secondary">Review, tag, and lifecycle controls for this pull request.</p>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-secondary">
+          <Tag variant={pr?.labels?.length ? "review" : "default"}>{labels.length} tags</Tag>
+          <Tag variant={pr?.state === "open" ? "open" : pr?.state === "closed" ? "default" : "merged"}>
+            {pr?.state || "unknown"}
+          </Tag>
+        </div>
+      </div>
+
+      {actionError && (
+        <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+          {actionError}
+        </div>
+      )}
+
+      {!dbPr?._id ? (
+        <div className="rounded-md border border-divider bg-bg px-3 py-4 text-sm text-secondary">
+          Loading PR metadata for actions...
+        </div>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="space-y-4 rounded-md border border-divider bg-bg p-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-secondary">Review Actions</h4>
+                  <p className="text-[11px] text-secondary">Approve or request changes without leaving the comments thread.</p>
+                </div>
+                <Tag variant="review">GitHub review</Tag>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <button
+                  onClick={() => onSubmitReview("approve")}
+                  disabled={actionLoading}
+                  className="rounded-md bg-emerald-500/15 px-3 py-2 text-sm text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-50"
+                >
+                  Approve
+                </button>
+                <button
+                  onClick={() => onSubmitReview("request_changes")}
+                  disabled={actionLoading}
+                  className="rounded-md bg-amber-500/15 px-3 py-2 text-sm text-amber-300 hover:bg-amber-500/20 disabled:opacity-50"
+                >
+                  Request changes
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-3 border-t border-divider pt-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-secondary">Tags</h4>
+                <span className="text-[11px] text-secondary">GitHub labels on this PR</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {labels.length ? labels.map((label) => (
+                  <Tag key={label.name} color={label.color} className="pr-1">
+                    <span className="inline-flex items-center gap-1">
+                      <span>{label.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => onRemoveTag(label.name)}
+                        className="inline-flex rounded-full p-0.5 text-secondary hover:text-primary"
+                        aria-label={`Remove tag ${label.name}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  </Tag>
+                )) : <span className="text-xs text-secondary">No tags yet.</span>}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  value={newTag}
+                  onChange={(event) => onNewTagChange(event.target.value)}
+                  placeholder="Add tag..."
+                  className="min-w-0 flex-1 rounded-md border border-divider bg-surface px-3 py-2 text-sm text-primary placeholder:text-secondary outline-none"
+                />
+                <button
+                  onClick={onAddTag}
+                  disabled={actionLoading || !newTag.trim()}
+                  className="inline-flex items-center gap-2 rounded-md border border-divider px-4 py-2 text-sm text-secondary hover:bg-hover hover:text-primary disabled:opacity-50"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3 rounded-md border border-divider bg-bg p-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-secondary">Lifecycle</h4>
+              <span className="text-[11px] text-secondary">Use the current GitHub state to decide next step</span>
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {pr?.state !== "merged" && (
+                <button
+                  onClick={onMerge}
+                  disabled={actionLoading}
+                  className="rounded-md bg-green-500/15 px-3 py-2 text-sm text-green-300 hover:bg-green-500/20 disabled:opacity-50"
+                >
+                  Merge PR
+                </button>
+              )}
+              {pr?.state !== "closed" && (
+                <button
+                  onClick={onClosePr}
+                  disabled={actionLoading}
+                  className="rounded-md bg-red-500/15 px-3 py-2 text-sm text-red-300 hover:bg-red-500/20 disabled:opacity-50"
+                >
+                  Close PR
+                </button>
+              )}
+              {pr?.state === "closed" && (
+                <button
+                  onClick={onReopen}
+                  disabled={actionLoading}
+                  className="rounded-md bg-blue-500/15 px-3 py-2 text-sm text-blue-300 hover:bg-blue-500/20 disabled:opacity-50 sm:col-span-2"
+                >
+                  Reopen PR
+                </button>
+              )}
+            </div>
+
+            <div className="border-t border-divider pt-4">
+              <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-secondary">Recent reviews</h4>
+              <div className="space-y-2">
+                {reviews.length ? reviews.slice(0, 4).map((review) => (
+                  <div key={review._id || review.githubId} className="rounded-md border border-divider bg-surface px-3 py-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-primary">{review.user?.login || "anonymous"}</span>
+                      <span className="text-[10px] text-secondary uppercase">{review.state}</span>
+                    </div>
+                    <div className="mt-1 text-xs text-secondary">
+                      <MarkdownBody>{review.body || "No comment"}</MarkdownBody>
+                    </div>
+                  </div>
+                )) : (
+                  <p className="text-xs text-secondary">No reviews yet.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {actionLoading && (
+        <div className="flex items-center gap-2 text-xs text-secondary">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Updating PR...
+        </div>
       )}
     </div>
   );
@@ -520,12 +893,19 @@ function CommitsPanel({ commits }) {
 /* =========================
    COMMENTS — REDDIT/YT STYLE
 ========================= */
-function CommentsPanel({ comments }) {
+function CommentsPanel({ comments, commentBody, onCommentBodyChange, onSubmitComment }) {
   if (!comments.length) {
     return (
-      <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-divider bg-surface py-10">
-        <MessageSquare className="h-8 w-8 text-secondary/40" />
-        <p className="text-sm text-secondary">No comments yet</p>
+      <div className="space-y-4">
+        <CommentComposer
+          commentBody={commentBody}
+          onCommentBodyChange={onCommentBodyChange}
+          onSubmitComment={onSubmitComment}
+        />
+        <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-divider bg-surface py-10">
+          <MessageSquare className="h-8 w-8 text-secondary/40" />
+          <p className="text-sm text-secondary">No comments yet</p>
+        </div>
       </div>
     );
   }
@@ -569,6 +949,12 @@ function CommentsPanel({ comments }) {
 
   return (
     <div className="space-y-6">
+      <CommentComposer
+        commentBody={commentBody}
+        onCommentBodyChange={onCommentBodyChange}
+        onSubmitComment={onSubmitComment}
+      />
+
       {/* Discussion section */}
       {discussionItems.length > 0 && (
         <div>
@@ -606,6 +992,36 @@ function CommentsPanel({ comments }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function CommentComposer({ commentBody, onCommentBodyChange, onSubmitComment }) {
+  return (
+    <div className="rounded-lg border border-divider bg-surface p-4 space-y-3">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h3 className="text-sm font-semibold text-primary">Add Comment</h3>
+          <p className="text-xs text-secondary">Post a discussion comment in the thread below.</p>
+        </div>
+        <Tag variant="default">Discussion</Tag>
+      </div>
+      <textarea
+        value={commentBody}
+        onChange={(event) => onCommentBodyChange(event.target.value)}
+        rows={4}
+        placeholder="Write a comment..."
+        className="w-full rounded-md border border-divider bg-bg px-3 py-2 text-sm text-primary placeholder:text-secondary outline-none"
+      />
+      <div className="flex justify-end">
+        <button
+          onClick={onSubmitComment}
+          className="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-black hover:opacity-90"
+        >
+          <MessageSquare className="h-4 w-4" />
+          Post comment
+        </button>
+      </div>
     </div>
   );
 }

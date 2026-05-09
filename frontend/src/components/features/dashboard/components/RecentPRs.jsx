@@ -19,6 +19,8 @@ export function RecentPRs({ prs = [], loading = false }) {
         };
     });
 
+    const visible = mapped;
+
     return (
         <Card
             title="Recent Pull Requests"
@@ -33,11 +35,11 @@ export function RecentPRs({ prs = [], loading = false }) {
         >
             {loading ? (
                 <PRSkeleton />
-            ) : mapped.length === 0 ? (
+            ) : visible.length === 0 ? (
                 <div className="py-6 text-center text-xs text-secondary">No recent pull requests</div>
             ) : (
                 <div>
-                    {mapped.map((pr, i) => (
+                    {visible.map((pr, i) => (
                         <PRRow key={i} {...pr} onNavigate={() => navigate("/pull-requests")} />
                     ))}
                 </div>

@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   GitPullRequest,
   FolderGit2,
-  Activity,
   MoreHorizontal,
   ChevronDown,
   LogOut,
@@ -17,7 +16,7 @@ import axios from "axios";
 
 const serverEndpoint = import.meta.env.VITE_SERVER_ENDPOINT;
 
-export function Sidebar({ user }) {
+export function Sidebar({ user, mobileOpen, onClose }) {
   const [collapsed, setCollapsed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -41,22 +40,29 @@ export function Sidebar({ user }) {
 
   return (
     <aside
-      className={`flex h-screen flex-col border-r border-divider bg-surface transition-all duration-300 ${collapsed ? "w-16" : "w-64"
-        }`}
+      className={`fixed inset-y-0 left-0 z-50 flex h-screen w-72 flex-col border-r border-divider bg-surface transition-transform duration-300 lg:static lg:z-auto lg:w-auto lg:translate-x-0 ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"} ${collapsed ? "lg:w-16" : "lg:w-64"}`}
     >
       {/* ── Top bar: repo switcher + collapse toggle ── */}
       <div className="flex h-14 items-center border-b border-divider px-3 gap-2">
         {/* Repo switcher — hidden when collapsed */}
         {!collapsed && (
           <div className="flex-1 min-w-0">
-            <RepoSwitcher />
+            <RepoSwitcher onClose={onClose} />
           </div>
         )}
+
+        <button
+          onClick={onClose}
+          className="inline-flex rounded-md p-1 text-secondary hover:bg-hover hover:text-primary lg:hidden"
+          aria-label="Close navigation"
+        >
+          <PanelLeftClose className="h-5 w-5" />
+        </button>
 
         {/* Collapse / expand button — always visible, centered when collapsed */}
         <button
           onClick={() => setCollapsed((c) => !c)}
-          className={`shrink-0 rounded-md p-1 hover:bg-hover ${collapsed ? "mx-auto" : ""
+          className={`hidden shrink-0 rounded-md p-1 hover:bg-hover lg:inline-flex ${collapsed ? "mx-auto" : ""
             }`}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
@@ -75,20 +81,22 @@ export function Sidebar({ user }) {
           label="Dashboard"
           collapsed={collapsed}
           path="/dashboard"
+          onNavigate={onClose}
         />
         <SidebarItem
           icon={GitPullRequest}
           label="Pull Requests"
           collapsed={collapsed}
           path="/pull-requests"
+          onNavigate={onClose}
         />
         <SidebarItem
           icon={FolderGit2}
           label="Repositories"
           collapsed={collapsed}
           path="/repos"
+          onNavigate={onClose}
         />
-        
       </nav>
 
       {/* ── Account footer ── */}
@@ -166,7 +174,7 @@ export function Sidebar({ user }) {
 /* =========================
    Repo Switcher
 ========================= */
-function RepoSwitcher() {
+function RepoSwitcher({ onClose }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -212,6 +220,7 @@ function RepoSwitcher() {
                   setActiveRepository(r);
                   localStorage.setItem("activeRepoId", String(r.id));
                   setOpen(false);
+                  onClose?.();
                 }}
                 className={`w-full flex items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-hover ${current?.id === r.id
                   ? "text-primary bg-selected"
@@ -235,7 +244,7 @@ function RepoSwitcher() {
 /* =========================
    Sidebar Item
 ========================= */
-function SidebarItem({ icon: Icon, label, collapsed, path }) {
+function SidebarItem({ icon: Icon, label, collapsed, path, onNavigate }) {
   const location = useLocation();
   // Use startsWith so /pull-requests/123 still highlights Pull Requests
   const active = path && (path === "/dashboard"
@@ -245,6 +254,7 @@ function SidebarItem({ icon: Icon, label, collapsed, path }) {
   return (
     <Link
       to={path || "#"}
+      onClick={() => onNavigate?.()}
       title={collapsed ? label : undefined}
       className={`flex items-center rounded-lg py-2 transition-colors ${collapsed ? "justify-center px-0" : "px-3"
         } ${active

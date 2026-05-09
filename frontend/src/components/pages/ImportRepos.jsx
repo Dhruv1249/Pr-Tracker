@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { Github } from "lucide-react";
+import { Github, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useRepo } from "../../context/RepoContext";
 
@@ -12,11 +12,14 @@ export default function ImportReposPage() {
 
   const [repos, setRepos] = useState([]);
   const [selected, setSelected] = useState([]);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   /* ---------- FETCH GITHUB REPOS ---------- */
   const getRepos = async () => {
     try {
+      setError(null);
       const res = await axios.get(
         `${serverEndpoint}/api/repos`,
         { withCredentials: true }
@@ -25,6 +28,7 @@ export default function ImportReposPage() {
       setRepos(res.data || []);
     } catch (error) {
       console.error("Fetch repos failed", error);
+      setError("Unable to load your GitHub repositories right now.");
     } finally {
       setLoading(false);
     }
@@ -44,16 +48,26 @@ export default function ImportReposPage() {
   };
 
   const toggleAll = () => {
-    if (selected.length === repos.length) {
+    const visibleRepoIds = filteredRepos.map((repo) => repo.githubRepoId);
+    if (selected.length === visibleRepoIds.length) {
       setSelected([]);
     } else {
-      setSelected(repos.map((r) => r.githubRepoId));
+      setSelected(visibleRepoIds);
     }
   };
+
+  const filteredRepos = repos.filter((repo) => {
+    if (!search.trim()) return true;
+    const q = search.trim().toLowerCase();
+    return [repo.name, repo.fullName, repo.owner]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(q));
+  });
 
   /* ---------- IMPORT ---------- */
   const handleImport = async () => {
     try {
+      setError(null);
       const toImport = selected.map(id => {
         const r = repos.find(x => x.githubRepoId === id);
         return { owner: r.owner, name: r.name };
@@ -70,13 +84,16 @@ export default function ImportReposPage() {
       navigate("/dashboard");
     } catch (err) {
       console.error("Import failed", err);
+      setError("Import failed. Please try again.");
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading repositories...
+      <div className="min-h-screen flex items-center justify-center bg-bg px-6">
+        <div className="rounded-2xl border border-divider bg-surface px-6 py-8 text-sm text-secondary">
+          Loading repositories…
+        </div>
       </div>
     );
   }
@@ -94,10 +111,27 @@ export default function ImportReposPage() {
           <p className="text-sm text-secondary">
             Select repositories to import into PR Tracker
           </p>
+          {error && <p className="text-xs text-red-400">{error}</p>}
         </div>
 
         {/* Card */}
         <div className="rounded-2xl border border-divider bg-surface p-5 space-y-4">
+
+          {/* Search */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 rounded-md border border-divider bg-bg px-3 py-2 focus-within:border-accent/50 transition-colors">
+              <Search className="h-4 w-4 text-secondary shrink-0" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search repositories by name or owner…"
+                className="w-full bg-transparent text-sm text-primary placeholder:text-secondary outline-none"
+              />
+            </div>
+            <p className="text-xs text-secondary">
+              Filter the GitHub repos you can import into PR Tracker.
+            </p>
+          </div>
 
           {/* Select controls */}
           <div className="flex items-center justify-between">
@@ -105,7 +139,7 @@ export default function ImportReposPage() {
               onClick={toggleAll}
               className="text-xs text-secondary hover:text-primary"
             >
-              {selected.length === repos.length
+              {selected.length === filteredRepos.length
                 ? "Deselect all"
                 : "Select all"}
             </button>
@@ -117,7 +151,7 @@ export default function ImportReposPage() {
 
           {/* Repo list */}
           <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-            {repos.map((repo) => (
+            {filteredRepos.map((repo) => (
               <RepoRow
                 key={repo.githubRepoId}
                 repo={repo}
@@ -125,6 +159,11 @@ export default function ImportReposPage() {
                 onToggle={() => toggle(repo.githubRepoId)}
               />
             ))}
+            {!filteredRepos.length && (
+              <div className="py-8 text-center text-sm text-secondary">
+                No repositories match your search.
+              </div>
+            )}
           </div>
 
           {/* Actions */}
