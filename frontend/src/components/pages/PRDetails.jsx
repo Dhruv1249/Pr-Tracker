@@ -156,7 +156,14 @@ export default function PRDetails() {
       return;
     }
 
-    await submitReview("comment", body);
+    await runAction(() =>
+      axios.post(
+        `${serverEndpoint}/api/prs/${dbPr._id}/comments`,
+        { body },
+        { withCredentials: true }
+      )
+    );
+
     setCommentBody("");
   };
 
@@ -433,7 +440,7 @@ function PRWorkspace({
   onClosePr,
   onReopen,
 }) {
-  const [tab, setTab] = useState("Files");
+  const [tab, setTab] = useState("Conversation");
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState(null);
   const [aiAnalysis, setAiAnalysis] = useState(null);
@@ -461,15 +468,41 @@ function PRWorkspace({
   };
 
   const tabs = [
-    { id: "Files", label: `Files${files.length > 0 ? ` (${files.length})` : ""}` },
+    { id: "Conversation", label: `Conversation${comments.length + reviews.length > 0 ? ` (${comments.length + reviews.length})` : ""}` },
     { id: "Commits", label: `Commits${commits.length > 0 ? ` (${commits.length})` : ""}` },
-    { id: "Comments", label: `Comments${comments.length > 0 ? ` (${comments.length})` : ""}` },
+    { id: "Files", label: `Files${files.length > 0 ? ` (${files.length})` : ""}` },
     { id: "Analysis", label: <span className="flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5 text-purple-400" />Analysis{aiAnalysis ? <span className="ml-1 h-1.5 w-1.5 rounded-full bg-purple-400 inline-block" /> : null}</span> },
     { id: "Actions", label: "Actions" },
   ];
 
   return (
     <div className="space-y-4">
+      {/* PR Header with title, description, metadata */}
+      <div className="space-y-3">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl font-semibold text-primary leading-snug">{pr.title}</h1>
+            <div className="mt-2 flex items-center gap-2 flex-wrap text-sm">
+              <span className="text-secondary">
+                #{pr.number} · opened by <span className="font-medium text-primary">{pr.user?.login}</span> {timeAgo(pr.created_at)}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Tag variant={pr?.state === "open" ? "open" : pr?.merged_at ? "merged" : "default"}>
+              {pr?.merged_at ? "Merged" : pr?.state === "open" ? "Open" : "Closed"}
+            </Tag>
+          </div>
+        </div>
+
+        {/* PR Description */}
+        {pr.body && (
+          <div className="rounded-lg border border-divider bg-surface-elev/30 p-4">
+            <MarkdownBody>{pr.body}</MarkdownBody>
+          </div>
+        )}
+      </div>
+
       {/* Tabs */}
       <div className="flex items-center gap-6 text-sm border-b border-divider">
         {tabs.map(({ id, label }) => (
@@ -488,16 +521,19 @@ function PRWorkspace({
         ))}
       </div>
 
-      {tab === "Files" && <DiffViewer files={files} />}
-      {tab === "Commits" && <CommitsPanel commits={commits} />}
-      {tab === "Comments" && (
-        <CommentsPanel
+      {tab === "Conversation" && (
+        <ConversationPanel
           comments={comments}
+          reviews={reviews}
+          commits={commits}
           commentBody={commentBody}
           onCommentBodyChange={onCommentBodyChange}
           onSubmitComment={onSubmitComment}
+          onSubmitReview={onSubmitReview}
         />
       )}
+      {tab === "Commits" && <CommitsDetailedPanel commits={commits} />}
+      {tab === "Files" && <DiffViewer files={files} />}
       {tab === "Analysis" && (
         <AnalysisPanel
           analyzing={analyzing}
@@ -576,7 +612,7 @@ function ActionsPanel({
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div>
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-secondary">Review Actions</h4>
-                  <p className="text-[11px] text-secondary">Approve or request changes without leaving the comments thread.</p>
+                  <p className="text-[11px] text-secondary">Approve or request changes without leaving the discussion.</p>
                 </div>
                 <Tag variant="review">GitHub review</Tag>
               </div>
@@ -642,28 +678,14 @@ function ActionsPanel({
           <div className="space-y-3 rounded-md border border-divider bg-bg p-4">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-semibold uppercase tracking-wider text-secondary">Lifecycle</h4>
-              <span className="text-[11px] text-secondary">Use the current GitHub state to decide next step</span>
+              <span className="text-[11px] text-secondary">Only show lifecycle actions that still make sense</span>
             </div>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {pr?.state !== "merged" && (
-                <button
-                  onClick={onMerge}
-                  disabled={actionLoading}
-                  className="rounded-md bg-green-500/15 px-3 py-2 text-sm text-green-300 hover:bg-green-500/20 disabled:opacity-50"
-                >
-                  Merge PR
-                </button>
-              )}
-              {pr?.state !== "closed" && (
-                <button
-                  onClick={onClosePr}
-                  disabled={actionLoading}
-                  className="rounded-md bg-red-500/15 px-3 py-2 text-sm text-red-300 hover:bg-red-500/20 disabled:opacity-50"
-                >
-                  Close PR
-                </button>
-              )}
-              {pr?.state === "closed" && (
+            {pr?.state === "merged" ? (
+              <div className="rounded-md border border-divider bg-surface px-3 py-4 text-sm text-secondary">
+                This PR is already merged. Lifecycle actions are locked.
+              </div>
+            ) : pr?.state === "closed" ? (
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <button
                   onClick={onReopen}
                   disabled={actionLoading}
@@ -671,8 +693,25 @@ function ActionsPanel({
                 >
                   Reopen PR
                 </button>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <button
+                  onClick={onMerge}
+                  disabled={actionLoading}
+                  className="rounded-md bg-green-500/15 px-3 py-2 text-sm text-green-300 hover:bg-green-500/20 disabled:opacity-50"
+                >
+                  Merge PR
+                </button>
+                <button
+                  onClick={onClosePr}
+                  disabled={actionLoading}
+                  className="rounded-md bg-red-500/15 px-3 py-2 text-sm text-red-300 hover:bg-red-500/20 disabled:opacity-50"
+                >
+                  Close PR
+                </button>
+              </div>
+            )}
 
             <div className="border-t border-divider pt-4">
               <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-secondary">Recent reviews</h4>
@@ -718,17 +757,24 @@ function DiffViewer({ files }) {
     );
   }
 
+  const sortedFiles = [...files].sort((a, b) =>
+    (a.filename || "").localeCompare(b.filename || "", undefined, {
+      numeric: true,
+      sensitivity: "base",
+    })
+  );
+
   return (
     <div className="space-y-2">
-      {files.map((f) => (
-        <FileDiff key={f.filename} file={f} />
+      {sortedFiles.map((f) => (
+        <FileDiff key={f.filename} file={f} defaultOpen={false} />
       ))}
     </div>
   );
 }
 
-function FileDiff({ file }) {
-  const [open, setOpen] = useState(true);
+function FileDiff({ file, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen);
   const lines = parsePatch(file.patch);
 
   return (
@@ -851,9 +897,128 @@ function DiffStats({ additions, deletions }) {
 }
 
 /* =========================
-   COMMITS
+   CONVERSATION — ALL ACTIVITY TIMELINE
 ========================= */
-function CommitsPanel({ commits }) {
+function ConversationPanel({ comments, reviews, commits, commentBody, onCommentBodyChange, onSubmitComment, onSubmitReview }) {
+  // Merge all activity into one chronological timeline
+  const timelineItems = [];
+
+  // Add issue comments
+  for (const c of comments) {
+    if (c.type === "issue") {
+      timelineItems.push({
+        type: "comment",
+        id: c.id,
+        timestamp: new Date(c.createdAt).getTime(),
+        data: c,
+      });
+    }
+  }
+
+  // Add review comments
+  for (const c of comments) {
+    if (c.type === "review") {
+      timelineItems.push({
+        type: "review",
+        id: c.id,
+        timestamp: new Date(c.createdAt).getTime(),
+        data: c,
+      });
+    }
+  }
+
+  // Add reviews
+  for (const r of reviews) {
+    timelineItems.push({
+      type: "review_verdict",
+      id: r._id || r.githubId,
+      timestamp: new Date(r.createdAt).getTime(),
+      data: r,
+    });
+  }
+
+  // Add commits
+  for (const c of commits) {
+    timelineItems.push({
+      type: "commit",
+      id: c.sha,
+      timestamp: new Date(c.date || c.commit?.author?.date).getTime(),
+      data: c,
+    });
+  }
+
+  // Sort chronologically
+  timelineItems.sort((a, b) => a.timestamp - b.timestamp);
+
+  return (
+    <div className="space-y-4">
+      {/* Timeline */}
+      <div className="space-y-0">
+        {timelineItems.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-divider bg-surface py-12">
+            <MessageSquare className="h-8 w-8 text-secondary/40" />
+            <p className="text-sm text-secondary">No activity yet</p>
+          </div>
+        ) : (
+          timelineItems.map((item) => {
+            if (item.type === "comment") {
+              return (
+                <IssueCommentCard
+                  key={item.id}
+                  comment={item.data}
+                  isFirst={item === timelineItems[0]}
+                  isLast={item === timelineItems[timelineItems.length - 1]}
+                />
+              );
+            } else if (item.type === "review") {
+              return (
+                <ReviewCommentCard
+                  key={item.id}
+                  comment={item.data}
+                  isFirst={item === timelineItems[0]}
+                  isLast={item === timelineItems[timelineItems.length - 1]}
+                />
+              );
+            } else if (item.type === "review_verdict") {
+              return (
+                <ReviewVerdictCard
+                  key={item.id}
+                  review={item.data}
+                  isFirst={item === timelineItems[0]}
+                  isLast={item === timelineItems[timelineItems.length - 1]}
+                />
+              );
+            } else if (item.type === "commit") {
+              return (
+                <TimelineCommitCard
+                  key={item.id}
+                  commit={item.data}
+                  isFirst={item === timelineItems[0]}
+                  isLast={item === timelineItems[timelineItems.length - 1]}
+                />
+              );
+            }
+            return null;
+          })
+        )}
+      </div>
+
+      {/* Comment composer at bottom */}
+      <CommentComposer
+        commentBody={commentBody}
+        onCommentBodyChange={onCommentBodyChange}
+        onSubmitComment={onSubmitComment}
+      />
+    </div>
+  );
+}
+
+/* =========================
+   COMMITS — DETAILED INLINE VIEW
+========================= */
+function CommitsDetailedPanel({ commits }) {
+  const [expandedSha, setExpandedSha] = useState(null);
+
   if (!commits.length) {
     return (
       <div className="rounded-lg border border-divider bg-surface p-4 text-sm text-secondary text-center">
@@ -863,138 +1028,154 @@ function CommitsPanel({ commits }) {
   }
 
   return (
-    <div className="space-y-1.5">
-      {commits.map((c) => (
-        <div
-          key={c.sha}
-          className="rounded-lg border border-divider bg-surface px-3 py-2 flex items-start gap-3"
-        >
-          <Avatar src={c.avatarUrl} name={c.author} size="sm" />
-          <div className="flex-1 min-w-0">
-            <div className="text-xs text-primary truncate">{c.message.split("\n")[0]}</div>
-            <div className="text-xs text-secondary mt-0.5">
-              {c.authorLogin || c.author} · {timeAgo(c.date)}
-            </div>
-          </div>
-          <a
-            href={c.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="shrink-0 font-mono text-xs text-secondary hover:text-primary"
+    <div className="space-y-3">
+      {commits.map((c) => {
+        const message = c.message || c.commit?.message || "";
+        const [headline, ...rest] = message.split("\n");
+        const detail = rest.join("\n").trim();
+        const isExpanded = expandedSha === c.sha;
+
+        return (
+          <div
+            key={c.sha}
+            className="rounded-lg border border-divider bg-surface overflow-hidden"
           >
-            {c.sha.slice(0, 7)}
-          </a>
-        </div>
-      ))}
+            {/* Commit summary — always visible */}
+            <button
+              onClick={() => setExpandedSha(isExpanded ? null : c.sha)}
+              className="w-full px-4 py-3 flex items-start gap-3 hover:bg-hover/30 transition-colors text-left"
+            >
+              <Avatar src={c.avatarUrl} name={c.author} size="sm" />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm text-primary leading-snug">{headline}</div>
+                {detail && (
+                  <div className="mt-1 text-xs text-secondary whitespace-pre-wrap line-clamp-2">{detail}</div>
+                )}
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-secondary">
+                  <span>{c.authorLogin || c.author || "unknown author"}</span>
+                  <span>·</span>
+                  <span>{timeAgo(c.date || c.commit?.author?.date)}</span>
+                </div>
+              </div>
+              <div className="shrink-0 flex items-center gap-2">
+                <span className="font-mono text-xs text-secondary">{c.sha.slice(0, 7)}</span>
+                {isExpanded ? (
+                  <ChevronDown className="h-4 w-4 text-secondary" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-secondary" />
+                )}
+              </div>
+            </button>
+
+            {/* Expanded diff view */}
+            {isExpanded && (
+              <div className="border-t border-divider">
+                {c.files && c.files.length > 0 ? (
+                  <div>
+                    <div className="px-4 py-2 bg-surface-elev/50 border-b border-divider text-xs text-secondary">
+                      {c.files.length} file{c.files.length !== 1 ? "s" : ""} changed
+                    </div>
+                    <div className="space-y-0">
+                      {[...c.files]
+                        .sort((a, b) =>
+                          (a.filename || "").localeCompare(b.filename || "", undefined, {
+                            numeric: true,
+                            sensitivity: "base",
+                          })
+                        )
+                        .map((f) => (
+                        <FileDiff key={f.filename} file={f} defaultOpen={false} />
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="px-4 py-4 text-xs text-secondary">
+                    No file changes available for this commit
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-/* =========================
-   COMMENTS — REDDIT/YT STYLE
-========================= */
-function CommentsPanel({ comments, commentBody, onCommentBodyChange, onSubmitComment }) {
-  if (!comments.length) {
-    return (
-      <div className="space-y-4">
-        <CommentComposer
-          commentBody={commentBody}
-          onCommentBodyChange={onCommentBodyChange}
-          onSubmitComment={onSubmitComment}
-        />
-        <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-divider bg-surface py-10">
-          <MessageSquare className="h-8 w-8 text-secondary/40" />
-          <p className="text-sm text-secondary">No comments yet</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Separate issue-level comments from review threads
-  const reviewMap = new Map();
-  const topLevelItems = [];
-
-  for (const c of comments) {
-    if (c.type === "issue") {
-      topLevelItems.push({ type: "issue", comment: c });
-    } else {
-      // review comment
-      if (c.inReplyToId) {
-        const parentThread = reviewMap.get(c.inReplyToId);
-        if (parentThread) {
-          parentThread.replies.push(c);
-          reviewMap.set(c.id, parentThread);
-        } else {
-          const thread = { type: "review_thread", root: c, replies: [] };
-          reviewMap.set(c.id, thread);
-          topLevelItems.push(thread);
-        }
-      } else {
-        const thread = { type: "review_thread", root: c, replies: [] };
-        reviewMap.set(c.id, thread);
-        topLevelItems.push(thread);
-      }
-    }
-  }
-
-  topLevelItems.sort((a, b) => {
-    const ta = new Date(a.type === "issue" ? a.comment.createdAt : a.root.createdAt).getTime();
-    const tb = new Date(b.type === "issue" ? b.comment.createdAt : b.root.createdAt).getTime();
-    return ta - tb;
-  });
-
-  // Split into discussion (issue) vs code review groups
-  const discussionItems = topLevelItems.filter((i) => i.type === "issue");
-  const reviewItems = topLevelItems.filter((i) => i.type === "review_thread");
+/* Timeline commit card for conversation view */
+function TimelineCommitCard({ commit, isFirst, isLast }) {
+  const message = commit.message || commit.commit?.message || "";
+  const [headline] = message.split("\n");
 
   return (
-    <div className="space-y-6">
-      <CommentComposer
-        commentBody={commentBody}
-        onCommentBodyChange={onCommentBodyChange}
-        onSubmitComment={onSubmitComment}
-      />
-
-      {/* Discussion section */}
-      {discussionItems.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <MessageSquare className="h-3.5 w-3.5 text-secondary" />
-            <span className="text-xs font-medium text-secondary uppercase tracking-wider">
-              Discussion · {discussionItems.length} comment{discussionItems.length !== 1 ? "s" : ""}
-            </span>
-          </div>
-          <div className="space-y-0 rounded-lg border border-divider overflow-hidden">
-            {discussionItems.map((item, idx) => (
-              <IssueCommentCard
-                key={item.comment.id}
-                comment={item.comment}
-                isLast={idx === discussionItems.length - 1}
-              />
-            ))}
-          </div>
+    <div className="flex gap-3 px-4 py-4 border-b border-divider last:border-b-0 bg-surface-elev/10 hover:bg-hover/20 transition-colors">
+      <div className="shrink-0 flex flex-col items-center">
+        <Avatar src={commit.avatarUrl} name={commit.author} size="md" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline gap-2 flex-wrap mb-2">
+          <span className="text-xs font-semibold text-primary">{commit.authorLogin || commit.author}</span>
+          <span className="text-xs text-accent/80 font-medium">committed</span>
+          <span className="text-xs text-secondary/60">{timeAgo(commit.date || commit.commit?.author?.date)}</span>
         </div>
-      )}
-
-      {/* Code review threads */}
-      {reviewItems.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <ChevronRight className="h-3.5 w-3.5 text-secondary" />
-            <span className="text-xs font-medium text-secondary uppercase tracking-wider">
-              Code Review · {reviewItems.length} thread{reviewItems.length !== 1 ? "s" : ""}
-            </span>
-          </div>
-          <div className="space-y-3">
-            {reviewItems.map((item) => (
-              <ReviewThread key={item.root.id} thread={item} />
-            ))}
-          </div>
+        <div className="text-sm text-primary font-mono">{headline}</div>
+        <div className="mt-2 inline-flex items-center gap-2 text-xs font-mono text-secondary bg-surface rounded px-2 py-1">
+          <span>{commit.sha.slice(0, 7)}</span>
+          <a
+            href={commit.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-secondary/50 hover:text-primary transition-colors"
+          >
+            <ExternalLink className="h-3 w-3" />
+          </a>
         </div>
-      )}
+      </div>
     </div>
   );
 }
+
+/* Review verdict for timeline */
+function ReviewVerdictCard({ review, isFirst, isLast }) {
+  const stateColors = {
+    APPROVED: "text-emerald-300",
+    CHANGES_REQUESTED: "text-amber-300",
+    COMMENTED: "text-blue-300",
+    PENDING: "text-secondary",
+    DISMISSED: "text-secondary/50",
+  };
+
+  const stateLabel = {
+    APPROVED: "approved",
+    CHANGES_REQUESTED: "requested changes",
+    COMMENTED: "commented",
+    PENDING: "pending",
+    DISMISSED: "dismissed",
+  };
+
+  return (
+    <div className="flex gap-3 px-4 py-4 border-b border-divider last:border-b-0 bg-surface hover:bg-hover/30 transition-colors">
+      <div className="shrink-0 flex flex-col items-center">
+        <Avatar src={review.user?.avatarUrl} name={review.user?.login} size="md" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline gap-2 flex-wrap mb-2">
+          <span className="text-xs font-semibold text-primary">{review.user?.login || "unknown"}</span>
+          <span className={`text-xs font-medium ${stateColors[review.state] || "text-secondary"}`}>
+            {stateLabel[review.state] || review.state}
+          </span>
+          <span className="text-xs text-secondary/60">{timeAgo(review.createdAt)}</span>
+        </div>
+        {review.body && (
+          <div className="text-xs leading-relaxed text-secondary">
+            <MarkdownBody>{review.body}</MarkdownBody>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 
 function CommentComposer({ commentBody, onCommentBodyChange, onSubmitComment }) {
   return (
@@ -1002,7 +1183,7 @@ function CommentComposer({ commentBody, onCommentBodyChange, onSubmitComment }) 
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h3 className="text-sm font-semibold text-primary">Add Comment</h3>
-          <p className="text-xs text-secondary">Post a discussion comment in the thread below.</p>
+          <p className="text-xs text-secondary">Post a discussion comment in the thread.</p>
         </div>
         <Tag variant="default">Discussion</Tag>
       </div>
@@ -1031,16 +1212,13 @@ function isQuoteReply(body) {
   return typeof body === "string" && body.trimStart().startsWith(">");
 }
 
-function IssueCommentCard({ comment, isLast }) {
+function IssueCommentCard({ comment, isFirst, isLast }) {
   const isReply = isQuoteReply(comment.body);
   return (
-    <div className={`flex gap-3 px-4 py-4 ${!isLast ? "border-b border-divider" : ""} ${isReply ? "bg-surface-elev/40" : "bg-surface"} hover:bg-hover/30 transition-colors`}>
+    <div className={`flex gap-3 px-4 py-4 border-b border-divider last:border-b-0 ${isReply ? "bg-surface-elev/40" : "bg-surface"} hover:bg-hover/30 transition-colors`}>
       {/* Avatar column */}
       <div className="shrink-0 flex flex-col items-center">
         <Avatar src={comment.author?.avatarUrl} name={comment.author?.login} size="md" />
-        {!isLast && (
-          <div className="mt-2 w-px flex-1 bg-divider min-h-[8px]" />
-        )}
       </div>
 
       {/* Content */}
@@ -1071,57 +1249,53 @@ function IssueCommentCard({ comment, isLast }) {
   );
 }
 
-function ReviewThread({ thread }) {
+function ReviewCommentCard({ comment, isFirst, isLast }) {
   return (
-    <div className="rounded-lg border border-divider bg-surface overflow-hidden">
-      {/* File context header */}
-      {thread.root.path && (
-        <div className="px-4 py-2 bg-surface-elev border-b border-divider">
-          <div className="flex items-center gap-1.5 text-xs text-secondary">
-            <MessageSquare className="h-3 w-3 shrink-0 text-accent" />
-            <span className="font-mono truncate">{thread.root.path}</span>
-            {thread.root.line && (
-              <span className="shrink-0 text-secondary/60">:{thread.root.line}</span>
-            )}
-            <span className="ml-auto text-xs text-secondary/50 italic shrink-0">
-              code review
-            </span>
-          </div>
-          {thread.root.diffHunk && (
-            <pre className="mt-2 mb-1 overflow-x-auto text-xs font-mono text-secondary/60 leading-relaxed max-h-28 overflow-y-hidden border-l-2 border-accent/30 pl-3 bg-surface/50 rounded">
-              {thread.root.diffHunk}
-            </pre>
-          )}
-        </div>
-      )}
+    <div className="flex gap-3 px-4 py-4 border-b border-divider last:border-b-0 bg-surface-elev/20 hover:bg-hover/30 transition-colors">
+      {/* Avatar column */}
+      <div className="shrink-0 flex flex-col items-center">
+        <Avatar src={comment.author?.avatarUrl} name={comment.author?.login} size="md" />
+      </div>
 
-      {/* All comments in thread, connected with avatar thread line */}
-      {[thread.root, ...thread.replies].map((c, idx, arr) => (
-        <div
-          key={c.id}
-          className={`flex gap-3 px-4 py-4 ${idx < arr.length - 1 ? "border-b border-divider" : ""} ${idx > 0 ? "bg-surface-elev/20" : "bg-surface"}`}
-        >
-          <div className="shrink-0 flex flex-col items-center">
-            <Avatar src={c.author?.avatarUrl} name={c.author?.login} size="md" />
-            {idx < arr.length - 1 && (
-              <div className="mt-2 w-px flex-1 bg-divider min-h-[8px]" />
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        {/* Header with code review context */}
+        <div className="flex items-baseline gap-2 flex-wrap mb-2">
+          <span className="text-xs font-semibold text-primary">{comment.author?.login}</span>
+          <span className="text-xs text-accent/80 font-medium">reviewed</span>
+          <span className="text-xs text-secondary/60">{timeAgo(comment.createdAt)}</span>
+          <a
+            href={comment.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-auto text-secondary/50 hover:text-primary transition-colors"
+          >
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+
+        {/* File/line context */}
+        {(comment.path || comment.diffHunk) && (
+          <div className="mb-2 text-xs text-secondary/60 font-mono">
+            {comment.path && (
+              <>
+                <span className="block">{comment.path}</span>
+                {comment.line && <span className="block text-secondary/50">Line {comment.line}</span>}
+              </>
+            )}
+            {comment.diffHunk && (
+              <pre className="mt-1 p-2 bg-surface/50 rounded border border-divider overflow-x-auto max-h-20 overflow-y-auto text-secondary/60 leading-relaxed">
+                {comment.diffHunk}
+              </pre>
             )}
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-baseline gap-2 flex-wrap mb-2">
-              <span className="text-xs font-semibold text-primary">{c.author?.login}</span>
-              {idx > 0 && <span className="text-xs text-accent/80 font-medium">replied</span>}
-              <span className="text-xs text-secondary/60">{timeAgo(c.createdAt)}</span>
-              <a href={c.url} target="_blank" rel="noopener noreferrer" className="ml-auto text-secondary/50 hover:text-primary">
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            </div>
-            <div className="text-xs leading-relaxed">
-              <MarkdownBody>{c.body}</MarkdownBody>
-            </div>
-          </div>
+        )}
+
+        {/* Body */}
+        <div className="text-xs leading-relaxed">
+          <MarkdownBody>{comment.body}</MarkdownBody>
         </div>
-      ))}
+      </div>
     </div>
   );
 }

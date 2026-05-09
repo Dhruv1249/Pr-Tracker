@@ -431,15 +431,45 @@ exports.listPrCommitsByNumber = async (req, res) => {
         const token = await resolveGithubToken(req, { required: true });
         const { owner, name, number } = req.params;
         const commits = await github.listPrCommits(owner, name, Number(number), token);
-        const mapped = commits.map((c) => ({
-            sha: c.sha,
-            message: c.commit.message,
-            author: c.commit.author.name,
-            authorLogin: c.author?.login || "",
-            avatarUrl: c.author?.avatar_url || "",
-            date: c.commit.author.date,
-            url: c.html_url,
-        }));
+
+        // PR commit list does not include file-level patches; fetch commit details per SHA.
+        const details = await Promise.all(
+            commits.map(async (c) => {
+                try {
+                    return await github.getCommit(owner, name, c.sha, token);
+                } catch (err) {
+                    console.warn(`[repos] failed to fetch commit details for ${c.sha}:`, err.message);
+                    return null;
+                }
+            })
+        );
+
+        const detailBySha = new Map(
+            details.filter(Boolean).map((d) => [d.sha, d])
+        );
+
+        const mapped = commits.map((c) => {
+            const detail = detailBySha.get(c.sha);
+            const files = (detail?.files || []).map((f) => ({
+                filename: f.filename,
+                status: f.status,
+                additions: f.additions,
+                deletions: f.deletions,
+                changes: f.changes,
+                patch: f.patch || null,
+            }));
+
+            return {
+                sha: c.sha,
+                message: c.commit.message,
+                author: c.commit.author.name,
+                authorLogin: c.author?.login || "",
+                avatarUrl: c.author?.avatar_url || "",
+                date: c.commit.author.date,
+                url: c.html_url,
+                files,
+            };
+        });
         res.json(mapped);
     } catch (err) {
         res.status(err.status || 500).json({ error: err.message });

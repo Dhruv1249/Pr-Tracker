@@ -116,9 +116,23 @@ async function listPrCommits(owner, name, prNumber, token) {
     return ghFetch(`/repos/${owner}/${name}/pulls/${prNumber}/commits?per_page=100`, token);
 }
 
+/** Get a single commit with changed files/patches */
+async function getCommit(owner, name, sha, token) {
+    return ghFetch(`/repos/${owner}/${name}/commits/${sha}`, token);
+}
+
 /** List issue-level comments on a PR (the general discussion thread) */
 async function listPrComments(owner, name, prNumber, token) {
     return ghFetch(`/repos/${owner}/${name}/issues/${prNumber}/comments?per_page=100`, token);
+}
+
+/** Create an issue-level comment on a PR */
+async function createPrComment(owner, name, prNumber, bodyText, token) {
+    return ghFetch(`/repos/${owner}/${name}/issues/${prNumber}/comments`, token, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: bodyText }),
+    });
 }
 
 /** List inline review comments on a PR (code-level comments) */
@@ -207,7 +221,9 @@ module.exports = {
     listPrReviews,
     listPrFiles,
     listPrCommits,
+    getCommit,
     listPrComments,
+    createPrComment,
     listPrReviewComments,
     mergePullRequest,
     closePullRequest,

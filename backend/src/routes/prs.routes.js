@@ -18,6 +18,9 @@ router.post("/api/prs/:prId/reopen", ctrl.reopenPr);
 router.post("/api/prs/:prId/reviews", ctrl.submitReview);
 router.get("/api/prs/:prId/reviews", ctrl.listReviews);
 
+// Discussion comments
+router.post("/api/prs/:prId/comments", ctrl.addComment);
+
 // Tags
 router.post("/api/prs/:prId/tags", ctrl.addTag);
 router.delete("/api/prs/:prId/tags/:tag", ctrl.removeTag);

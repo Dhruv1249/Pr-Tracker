@@ -198,6 +198,49 @@ exports.submitReview = async (req, res) => {
     }
 };
 
+// POST /api/prs/:prId/comments
+exports.addComment = async (req, res) => {
+    console.log(`[prs.controller] POST /api/prs/${req.params.prId}/comments`);
+    try {
+        const token = await resolveGithubToken(req, { required: true });
+        const pr = await db.getPRById(req.params.prId, req);
+        const { body } = req.body;
+
+        if (!body || !String(body).trim()) {
+            return res.status(400).json({ error: "body is required" });
+        }
+
+        const repo = pr.repository;
+        if (!repo) return res.status(404).json({ error: "Repo not found" });
+
+        const ownerLogin = repo.owner?.login || repo.fullName.split("/")[0];
+        const ghComment = await github.createPrComment(ownerLogin, repo.name, pr.number, String(body).trim(), token);
+
+        try {
+            await db.updatePR(
+                pr.githubId,
+                { commentsCount: (pr.commentsCount || 0) + 1 },
+                req
+            );
+        } catch (dbErr) {
+            console.warn(`[prs.controller] Failed to increment commentsCount for PR ${pr.githubId}: ${dbErr.message}`);
+        }
+
+        await db.createAuditLog({
+            action: "ADD_COMMENT",
+            actor: `user:${req.headers["x-user-github-id"] || "unknown"}`,
+            target: `pr:${pr.number}`,
+            details: { repoId: repo._id, repoName: repo.fullName, prId: pr._id }
+        }, req).catch(console.error);
+
+        res.status(201).json({ message: "Comment added", comment: ghComment });
+    } catch (err) {
+        console.error(`[prs.controller] POST /api/prs/${req.params.prId}/comments FAILED: ${err.message}`);
+        if (err.status === 404) return res.status(404).json({ error: "PR not found" });
+        res.status(err.status || 500).json({ error: err.message });
+    }
+};
+
 // GET /api/prs/:prId/reviews
 exports.listReviews = async (req, res) => {
     try {
