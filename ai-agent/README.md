@@ -1,4 +1,4 @@
-# PR Tracker — AI Agent Service
+# PR TrackerAI Agent Service
 
 The **AI Agent Service** uses Mistral AI to perform intelligent analysis of pull request diffs. It provides automated code review, risk assessment, security vulnerability detection, and an interactive conversational agent.
 
@@ -52,7 +52,7 @@ cp .env.example .env
 |----------|-------------|
 | `PORT` | Port the service listens on (default: `5001`) |
 | `MISTRAL_API_KEY` | Your Mistral AI API key |
-| `PROXY_URL` | API Gateway URL (for CORS origin) — e.g. `http://localhost:5003` |
+| `PROXY_URL` | API Gateway URL (for CORS origin)  e.g. `http://localhost:5003` |
 
 ---
 

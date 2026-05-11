@@ -2,6 +2,11 @@
   "name": "pr-tracker-main-backend",
   "version": "1.0.0",
   "description": "Core Backend Service for PR Tracker (port 5002)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Dhruv1249/Pr-Tracker.git",
+    "directory": "backend"
+  },
   "main": "src/index.js",
   "scripts": {
     "start": "node --dns-result-order=ipv4first src/index.js",

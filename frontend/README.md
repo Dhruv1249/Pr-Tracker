@@ -1,6 +1,6 @@
-# PR Tracker — Client
+# Frontend Application
 
-A React-based frontend for tracking GitHub pull requests across your repositories. View PR status, manage reviews, get AI-powered code analysis, and stay on top of your team's workflow — all in one place.
+A React-based frontend for tracking GitHub pull requests across your repositories. View PR status, manage reviews, get AI-powered code analysis, and stay on top of your team's workflow  all in one place.
 
 ---
 
@@ -20,42 +20,31 @@ A React-based frontend for tracking GitHub pull requests across your repositorie
 
 ## Features
 
-- **GitHub OAuth Login** — Authenticate with your GitHub account
-- **Repository Import** — Select repositories to track; PRs are synced to the database immediately on import
-- **Pull Requests List** — Paginated table/kanban view with search, filter by state (Open / Closed / Merged / Draft), and sort controls
-- **Background Polling** — PRs auto-refresh every hour silently in the background; manual Refresh button available
-- **PR Details** — Full detail view with commits, changed files, inline diff, comments, and reviewer info
-- **AI Code Review** — On-demand AI analysis of PR diffs with structured insights (summary, issues, suggestions)
-- **PR Insights** — Analytics panel per PR
-- **Dashboard** — Overview of tracked repositories and activity
-- **Repositories Page** — View and manage all imported repositories
+- **GitHub OAuth Login**  Authenticate with your GitHub account
+- **Repository Import**  Select repositories to track; PRs are synced to the database immediately on import
+- **Pull Requests List**  Paginated table/kanban view with search, filter by state (Open / Closed / Merged / Draft), and sort controls
+- **Background Polling**  PRs auto-refresh every hour silently in the background; manual Refresh button available
+- **PR Details**  Full detail view with commits, changed files, inline diff, comments, and reviewer info
+- **AI Code Review**  On-demand AI analysis of PR diffs with structured insights (summary, issues, suggestions)
+- **PR Insights**  Analytics panel per PR
+- **Dashboard**  Overview of tracked repositories and activity
+- **Repositories Page**  View and manage all imported repositories
 
 ---
 
 ## Project Structure
 
 ```
-src/
-├── App.jsx                  # Root component, auth guard, global data loading
-├── context/
-│   └── RepoContext.jsx      # Global state: active repo, user, repo list
-├── components/
-│   ├── pages/               # Top-level page components
-│   │   ├── Dashboard.jsx
-│   │   ├── PullRequests.jsx  # PR list with pagination & hourly polling
-│   │   ├── PRDetails.jsx     # Full PR detail view
-│   │   ├── Repository.jsx
-│   │   ├── ImportRepos.jsx
-│   │   ├── Login.jsx
-│   │   └── LandingPage.jsx
-│   ├── features/
-│   │   ├── PRs/             # PR list, controls, table, kanban, insights
-│   │   ├── dashboard/       # Dashboard stats components
-│   │   └── repos/           # ImportRepoModal
-│   ├── layout/              # AppLayout, Navbar, Sidebar
-│   └── ui/                  # Shared UI primitives
-└── utils/
-    └── timeAgo.js
+frontend/
++-- src/
+|   +-- components/                      # UI Components
+|   +-- context/                         # React Context (State)
+|   +-- services/                        # API Client logic
+|   +-- App.jsx                          # Main Entry
++-- public/
++-- package.json
++-- vite.config.js
++-- tailwind.config.js
 ```
 
 ---
@@ -102,7 +91,7 @@ npm run build
 
 ## Authentication Flow
 
-1. User clicks **Login with GitHub** → redirected to GitHub OAuth
+1. User clicks **Login with GitHub**  redirected to GitHub OAuth
 2. GitHub redirects back to the backend auth service callback
 3. The gateway sets an `httpOnly` JWT cookie and redirects to `/dashboard`
 4. All subsequent API calls are authenticated via this cookie
@@ -113,7 +102,7 @@ npm run build
 
 | Trigger | What happens |
 |---|---|
-| **Import repo** | Calls `POST /api/repos/track` → saves Repository + all PRs to MongoDB |
+| **Import repo** | Calls `POST /api/repos/track`  saves Repository + all PRs to MongoDB |
 | **Page visit / repo switch** | Fetches latest PRs from GitHub; saves/updates them to DB in background |
 | **Refresh button** | Same as above, on-demand |
 | **Hourly polling** | Silent background re-fetch every 60 minutes while the PR list is open |

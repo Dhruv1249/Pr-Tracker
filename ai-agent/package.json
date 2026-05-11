@@ -2,6 +2,11 @@
   "name": "pr-tracker-ai-agent",
   "version": "1.0.0",
   "description": "AI agent for pr-tracker mern project",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Dhruv1249/Pr-Tracker.git",
+    "directory": "ai-agent"
+  },
   "license": "ISC",
   "author": "Dhruv",
   "type": "module",

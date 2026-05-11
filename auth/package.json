@@ -1,6 +1,11 @@
 {
   "name": "mern-project",
   "version": "1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Dhruv1249/Pr-Tracker.git",
+    "directory": "auth"
+  },
   "description": "",
   "main": "index.js",
   "scripts": {

@@ -1,4 +1,4 @@
-# PR Tracker — MongoDB Data Service
+# PR TrackerMongoDB Data Service
 
 The **MongoDB Data Service** is the persistence layer of the PR Tracker microservices architecture. It exposes a RESTful API for CRUD operations on all core data entities: users, repositories, pull requests, and reviews.
 
@@ -27,7 +27,7 @@ The **MongoDB Data Service** is the persistence layer of the PR Tracker microser
 | **Database** | MongoDB (Mongoose ODM) |
 | **Accessed via** | `pr-tracker-service-router` (port 5003) |
 
-This service is intentionally thin — it contains no business logic. All requests arrive via the API Gateway, which handles authentication.
+This service is intentionally thin  it contains no business logic. All requests arrive via the API Gateway, which handles authentication.
 
 ---
 
@@ -74,7 +74,7 @@ npm start
 
 All routes are prefixed with `/api`.
 
-### Users — `/api/users`
+### Users  `/api/users`
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -85,7 +85,7 @@ All routes are prefixed with `/api`.
 | `PUT` | `/api/users/github/:githubId` | Update user (e.g. refresh token) |
 | `DELETE` | `/api/users/github/:githubId` | Delete user |
 
-### Repositories — `/api/repositories`
+### Repositories  `/api/repositories`
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -98,7 +98,7 @@ All routes are prefixed with `/api`.
 | `PUT` | `/api/repositories/github/:githubId` | Update repository |
 | `DELETE` | `/api/repositories/github/:githubId` | Delete repository |
 
-### Pull Requests — `/api/pullrequests`
+### Pull Requests  `/api/pullrequests`
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -116,7 +116,7 @@ All routes are prefixed with `/api`.
 | `PUT` | `/api/pullrequests/github/:githubId/reopen` | Reopen PR |
 | `DELETE` | `/api/pullrequests/github/:githubId` | Delete pull request |
 
-### Reviews — `/api/reviews`
+### Reviews  `/api/reviews`
 
 | Method | Path | Description |
 |--------|------|-------------|

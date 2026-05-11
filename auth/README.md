@@ -1,4 +1,4 @@
-# PR Tracker — Auth Service
+# PR TrackerAuth Service
 
 The **Auth Service** handles GitHub OAuth authentication for the PR Tracker application. It is the identity layer of the microservices architecture, responsible for issuing JWT tokens and persisting user profiles to the database.
 
@@ -61,7 +61,7 @@ All database calls go through the **API Gateway** (`pr-tracker-service-router`) 
 ## Installation
 
 ```bash
-cd pr-tracker-backend
+cd pr-tracker-auth
 npm install
 ```
 
@@ -134,7 +134,7 @@ node server.js
 ## Project Structure
 
 ```
-pr-tracker-backend/
+pr-tracker-auth/
  server.js                   # Entry point (starts on PORT 5005)
  package.json
  Dockerfile
