@@ -27,17 +27,11 @@ _Note: There is also a `pr-tracker-backend` directory, which may serve as a lega
 
 ### Installation
 
-1. **Clone the repository along with its submodules:**
+1. **Clone the repository:**
 
    ```bash
-   git clone --recurse-submodules <this-repo-url>
+   git clone https://github.com/Dhruv1249/Pr-Tracker
    cd mern_project
-   ```
-
-   _If you've already cloned without submodules, fetch them using:_
-
-   ```bash
-   git submodule update --init --recursive
    ```
 
 2. **Install dependencies for each service:**
@@ -49,18 +43,6 @@ _Note: There is also a `pr-tracker-backend` directory, which may serve as a lega
 
 3. **Environment Setup:**
    Ensure you create `.env` files in each respective backend and service directory, specifying necessary variables like database URIs, Mistral AI keys, and GitHub OAuth credentials.
-
-### Running the Application
-
-A convenience script `start.sh` is provided in the root directory to spin up all active services continuously.
-
-```bash
-chmod +x start.sh
-./start.sh
-```
-
-This script will simultaneously boot up the MongoDB data service, Auth service, Main Backend, AI Agent, Service Router, and finally the Client frontend.
-To gracefully spin down all local services, terminate the script using `Ctrl+C`.
 
 ## 🛠️ Tech Stack Overview
 
