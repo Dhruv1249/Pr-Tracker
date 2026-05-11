@@ -1,0 +1,56 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/ubuntu/project
+            
+            echo "Updating code from GitHub..."
+            git pull origin main
+            
+            echo "Stopping old containers..."
+            docker compose down
+            
+            echo "Building and starting new containers..."
+            docker compose up -d --build
+            
+            echo "Waiting for services to stabilize (20s)..."
+            sleep 20
+            
+            echo "Running Health Checks..."
+            
+            # Check if containers are running
+            if [ $(docker compose ps | grep "Up" | wc -l) -ge 5 ]; then
+              echo "All containers are running."
+            else
+              echo "Some containers failed to start."
+              docker compose ps
+              exit 1
+            fi
+            
+            # Check API Gateway Health
+            HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5003/api/health)
+            if [ "$HEALTH_STATUS" -eq 200 ]; then
+              echo "API Gateway is healthy (Status 200)."
+            else
+              echo "API Gateway health check failed (Status $HEALTH_STATUS)."
+              exit 1
+            fi
+
+            echo "Deployment successful!"
