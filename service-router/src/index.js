@@ -12,6 +12,7 @@ const healthRoutes = require("./routes/health.routes");
 const cookieParser = require("cookie-parser");
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT;
 
 app.use(cookieParser())
