@@ -4,8 +4,8 @@ services:
     container_name: mongodb
     env_file:
       - ./mongodb/.env
-    ports:
-      - 127.0.0.1:5004:5004
+    # ports:
+    #   - 127.0.0.1:5004:5004
     networks:
       - backend
 
@@ -14,8 +14,8 @@ services:
     container_name: backend
     env_file:
       - ./backend/.env
-    ports:
-      - 127.0.0.1:5002:5002
+    # ports:
+    #   - 127.0.0.1:5002:5002
     depends_on:
       - mongodb
     networks:
@@ -28,8 +28,8 @@ services:
     container_name: ai-agent
     env_file:
       - ./ai-agent/.env
-    ports:
-      - 127.0.0.1:5001:5001
+    # ports:
+    #   - 127.0.0.1:5001:5001
     depends_on:
       - backend
     networks:
@@ -43,7 +43,7 @@ services:
     env_file:
       - ./service-router/.env
     ports:
-      - 5003:5003
+      - 127.0.0.1:5003:5003
     depends_on:
       - backend
     networks:
@@ -56,8 +56,8 @@ services:
     container_name: auth
     env_file:
       - ./auth/.env
-    ports:
-      - 127.0.0.1:5005:5005
+    # ports:
+    #   - 127.0.0.1:5005:5005
     depends_on:
       - service-router
     networks:
@@ -71,7 +71,7 @@ services:
     env_file:
       - ./frontend/.env
     ports:
-      - 5173:5173
+      - 127.0.0.1:5173:5173
     depends_on:
       - service-router
     networks:
