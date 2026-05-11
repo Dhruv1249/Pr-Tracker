@@ -14,7 +14,7 @@ import {
 import { useRepo } from "../../context/RepoContext";
 import axios from "axios";
 
-const serverEndpoint = import.meta.env.VITE_SERVER_ENDPOINT;
+const serverEndpoint = import.meta.env.VITE_SERVER_ENDPOINT || "";
 
 export function Sidebar({ user, mobileOpen, onClose }) {
   const [collapsed, setCollapsed] = useState(false);

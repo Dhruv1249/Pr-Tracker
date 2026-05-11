@@ -5,7 +5,7 @@ import PRControls from "../features/PRs/components/PRControls";
 import PRList from "../features/PRs/components/PRList";
 import { useRepo } from "../../context/RepoContext";
 
-const serverEndpoint = import.meta.env.VITE_SERVER_ENDPOINT;
+const serverEndpoint = import.meta.env.VITE_SERVER_ENDPOINT || "";
 
 const PER_PAGE_OPTIONS = [10, 20, 50];
 

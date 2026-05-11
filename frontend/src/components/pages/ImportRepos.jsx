@@ -4,7 +4,7 @@ import { Github, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useRepo } from "../../context/RepoContext";
 
-const serverEndpoint = import.meta.env.VITE_SERVER_ENDPOINT;
+const serverEndpoint = import.meta.env.VITE_SERVER_ENDPOINT || "";
 
 export default function ImportReposPage() {
   const navigate = useNavigate();

@@ -1,7 +1,7 @@
 import { Github, ShieldCheck, GitPullRequest } from "lucide-react";
 import { useState } from "react";
 
-const serverEndpoint = import.meta.env.VITE_SERVER_ENDPOINT;
+const serverEndpoint = import.meta.env.VITE_SERVER_ENDPOINT || "";
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);

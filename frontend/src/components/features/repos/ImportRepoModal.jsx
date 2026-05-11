@@ -3,7 +3,7 @@ import axios from "axios";
 import { Github, Search, X, CheckCircle2, Loader2 } from "lucide-react";
 import { useRepo } from "../../../context/RepoContext";
 
-const serverEndpoint = import.meta.env.VITE_SERVER_ENDPOINT;
+const serverEndpoint = import.meta.env.VITE_SERVER_ENDPOINT || "";
 
 /* ============================================================
    ImportRepoModal

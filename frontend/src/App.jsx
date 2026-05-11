@@ -14,7 +14,7 @@ import { timeAgo } from "./utils/timeAgo";
 import { RepoProvider, useRepo } from "./context/RepoContext";
 import { useLocation } from "react-router-dom";
 
-const serverEndpoint = import.meta.env.VITE_SERVER_ENDPOINT;
+const serverEndpoint = import.meta.env.VITE_SERVER_ENDPOINT || "";
 const PUBLIC_ROUTES = ["/", "/login", "/auth/callback"];
 
 /* =========================
@@ -43,13 +43,12 @@ function AppContent() {
     try {
       setBootError(null);
 
-      if (!serverEndpoint) {
-        throw new Error("VITE_SERVER_ENDPOINT is not configured.");
-      }
+      // If serverEndpoint is missing, we use relative paths (default in production)
+      const apiBase = serverEndpoint || "";
 
       // 1. Current user
       const userRes = await axios.get(
-        `${serverEndpoint}/api/db/users/me`,
+        `${apiBase}/api/db/users/me`,
         { withCredentials: true }
       );
 
@@ -68,7 +67,7 @@ function AppContent() {
 
       // 2. GitHub repos
       const repoRes = await axios.get(
-        `${serverEndpoint}/api/repos`,
+        `${apiBase}/api/repos`,
         { withCredentials: true }
       );
 

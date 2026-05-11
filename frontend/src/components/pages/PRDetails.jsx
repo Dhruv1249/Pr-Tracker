@@ -20,7 +20,7 @@ import { useRepo } from "../../context/RepoContext";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-const serverEndpoint = import.meta.env.VITE_SERVER_ENDPOINT;
+const serverEndpoint = import.meta.env.VITE_SERVER_ENDPOINT || "";
 
 /* =========================
    PR DETAILS PAGE

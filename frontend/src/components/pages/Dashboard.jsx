@@ -6,7 +6,7 @@ import RecentPRs from "../features/dashboard/components/RecentPRs";
 import ImportReposPage from "./ImportRepos";
 import { useRepo } from "../../context/RepoContext";
 
-const serverEndpoint = import.meta.env.VITE_SERVER_ENDPOINT;
+const serverEndpoint = import.meta.env.VITE_SERVER_ENDPOINT || "";
 
 function deriveStatus(pr) {
   if (pr.merged_at) return "Merged";

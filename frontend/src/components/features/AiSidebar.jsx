@@ -5,7 +5,7 @@ import { useRepo } from "../../context/RepoContext";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-const serverEndpoint = import.meta.env.VITE_SERVER_ENDPOINT;
+const serverEndpoint = import.meta.env.VITE_SERVER_ENDPOINT || "";
 
 export default function AiSidebar({ open, onClose }) {
   const [messages, setMessages] = useState([
