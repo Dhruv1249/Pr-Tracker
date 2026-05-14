@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: pr-tracker-config-prod
+  name: pr-tracker-config
 data:
   node-env: "production"
   client-url: "https://pr-tracker.dev"
