@@ -106,3 +106,5 @@ npm run build
 | **Page visit / repo switch** | Fetches latest PRs from GitHub; saves/updates them to DB in background |
 | **Refresh button** | Same as above, on-demand |
 | **Hourly polling** | Silent background re-fetch every 60 minutes while the PR list is open |
+--- 
+**CI/CD Status**: Built and deployed via GitHub Actions to GHCR.

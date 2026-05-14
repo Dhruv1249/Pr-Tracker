@@ -233,3 +233,6 @@ pr-tracker-mongodb/
 docker build -t pr-tracker-mongodb .
 docker run -p 5004:5004 --env-file .env pr-tracker-mongodb
 ```
+
+--- 
+**CI/CD Status**: Built and deployed via GitHub Actions to GHCR.

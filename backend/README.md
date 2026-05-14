@@ -189,3 +189,6 @@ pr-tracker-main-backend/
 docker build -t pr-tracker-main-backend .
 docker run -p 5002:5002 --env-file .env pr-tracker-main-backend
 ```
+
+--- 
+**CI/CD Status**: Built and deployed via GitHub Actions to GHCR.

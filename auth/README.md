@@ -166,3 +166,6 @@ pr-tracker-auth/
 docker build -t pr-tracker-backend .
 docker run -p 5005:5005 --env-file .env pr-tracker-backend
 ```
+
+--- 
+**CI/CD Status**: Built and deployed via GitHub Actions to GHCR.
