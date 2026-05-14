@@ -2,8 +2,6 @@
 
 An AI-powered Pull Request tracking and analysis system built with a robust **MERN Microservices Architecture**. This platform helps developers manage, sync, and analyze GitHub Pull Requests using autonomous AI agents.
 
-**Repository URL:** [https://github.com/Dhruv1249/Pr-Tracker](https://github.com/Dhruv1249/Pr-Tracker)
-
 ---
 
 ## Architecture Overview
