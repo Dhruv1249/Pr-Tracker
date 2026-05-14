@@ -42,8 +42,10 @@ spec:
         stage('Debug Kubeconfig') {
             steps {
                 container('kubectl') {
-                    sh 'cat /etc/rancher/k3s/k3s.yaml'
+                    sh 'ls -lah /kube'
+                    sh 'cat /kube/k3s.yaml'
                     sh 'kubectl config view'
+                    sh 'kubectl get nodes'
                 }
             }
         }
