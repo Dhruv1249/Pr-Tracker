@@ -108,3 +108,6 @@ npm run build
 | **Hourly polling** | Silent background re-fetch every 60 minutes while the PR list is open |
 --- 
 **CI/CD Status**: Built and deployed via GitHub Actions to GHCR.
+
+--- 
+**Architecture**: Multi-arch build enabled (AMD64 & ARM64).

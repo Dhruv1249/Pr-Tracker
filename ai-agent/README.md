@@ -200,3 +200,6 @@ docker run -p 5001:5001 --env-file .env pr-tracker-ai-agent
 
 --- 
 **CI/CD Status**: Built and deployed via GitHub Actions to GHCR.
+
+--- 
+**Architecture**: Multi-arch build enabled (AMD64 & ARM64).

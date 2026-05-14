@@ -236,3 +236,6 @@ docker run -p 5004:5004 --env-file .env pr-tracker-mongodb
 
 --- 
 **CI/CD Status**: Built and deployed via GitHub Actions to GHCR.
+
+--- 
+**Architecture**: Multi-arch build enabled (AMD64 & ARM64).

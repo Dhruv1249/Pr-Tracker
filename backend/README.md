@@ -192,3 +192,6 @@ docker run -p 5002:5002 --env-file .env pr-tracker-main-backend
 
 --- 
 **CI/CD Status**: Built and deployed via GitHub Actions to GHCR.
+
+--- 
+**Architecture**: Multi-arch build enabled (AMD64 & ARM64).

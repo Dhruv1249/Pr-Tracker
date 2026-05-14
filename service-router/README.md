@@ -158,3 +158,6 @@ docker run -p 5003:5003 --env-file .env pr-tracker-service-router
 
 --- 
 **CI/CD Status**: Built and deployed via GitHub Actions to GHCR.
+
+--- 
+**Architecture**: Multi-arch build enabled (AMD64 & ARM64).
