@@ -1,6 +1,6 @@
 # PR TrackerMongoDB Data Service
 
-The **MongoDB Data Service** is the persistence layer of the PR Tracker microservices architecture. It exposes a RESTful API for CRUD operations on all core data entities: users, repositories, pull requests, and reviews.
+The **MongoDB Data Service** is the persistence layer of the PR Tracker microservices architecture. It exposes a RESTful API for CRUD operations on all core data entities: users, repositories, pull requests, and reviews
 
 ---
 

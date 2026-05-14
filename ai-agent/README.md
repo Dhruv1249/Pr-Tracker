@@ -69,7 +69,7 @@ npm run dev
 
 ## API Endpoints
 
-All routes accept `POST` requests with a JSON body containing a `content` field (the PR unified diff).
+All routes accept `POST` requests with a JSON body containing a `content` field (the PR unified diff)
 
 ### Code Review
 

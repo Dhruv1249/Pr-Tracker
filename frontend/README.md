@@ -1,6 +1,6 @@
 # Frontend Application
 
-A React-based frontend for tracking GitHub pull requests across your repositories. View PR status, manage reviews, get AI-powered code analysis, and stay on top of your team's workflow  all in one place.
+A React-based frontend for tracking GitHub pull requests across your repositories. View PR status, manage reviews, get AI-powered code analysis, and stay on top of your team's workflow  all in one place
 
 ---
 

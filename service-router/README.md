@@ -1,6 +1,6 @@
 # PR TrackerAPI Gateway (Service Router)
 
-The **API Gateway** is the single entry point for all client requests. It validates JWT authentication and proxies incoming traffic to the correct downstream microservice. No business logic lives here  the gateway exists purely to unify the service surface, enforce auth, and route requests.
+The **API Gateway** is the single entry point for all client requests. It validates JWT authentication and proxies incoming traffic to the correct downstream microservice. No business logic lives here  the gateway exists purely to unify the service surface, enforce auth, and route requests
 
 ---
 

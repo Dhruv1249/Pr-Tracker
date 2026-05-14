@@ -65,7 +65,7 @@ cd pr-tracker-auth
 npm install
 ```
 
-Copy the example environment file and fill in the values:
+Copy the example environment file and fill in values:
 
 ```bash
 cp .env.example .env

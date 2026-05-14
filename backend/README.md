@@ -1,6 +1,6 @@
 # PR TrackerCore Backend Service
 
-The **Core Backend Service** is the business logic engine of the PR Tracker application. It interfaces with the GitHub API to manage repositories and pull requests, and orchestrates AI analysis, dashboard stats, webhook events, and CLI operations.
+The **Core Backend Service** is the business logic engine of the PR Tracker application. It interfaces with the GitHub API to manage repositories and pull requests, and orchestrates AI analysis, dashboard stats, webhook events, and CLI operations
 
 ---
 
