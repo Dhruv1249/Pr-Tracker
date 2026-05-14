@@ -7,10 +7,11 @@ kind: Pod
 spec:
   containers:
   - name: kubectl
-    image: bitnami/kubectl:latest
+    image: alpine/k8s:1.29.2
     command:
-    - cat
-    tty: true
+    - sleep
+    args:
+    - "36000"
     volumeMounts:
     - name: kubeconfig
       mountPath: /etc/rancher/k3s/k3s.yaml
@@ -34,18 +35,12 @@ spec:
     }
 
     stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-
         stage('Deploy to K3s') {
             steps {
                 container('kubectl') {
                     script {
                         echo 'Applying Kubernetes manifests...'
-                        // We use the manifests from GitHub, but the secret from the /mnt mount
+                        // Deploying using manifests from SCM and local secrets
                         sh 'kubectl apply -f k8s/configmap-prod.yaml'
                         sh 'kubectl apply -f /mnt/k8s/secrets-prod.yaml'
                         sh 'kubectl apply -f k8s/auth.yaml'
