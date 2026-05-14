@@ -15,17 +15,16 @@ spec:
     - name: kubeconfig
       mountPath: /etc/rancher/k3s/k3s.yaml
       readOnly: true
-    - name: prod-secrets
-      mountPath: /home/jenkins/agent/workspace/pr-tracker-deploy/k8s/secrets-prod.yaml
-      subPath: secrets-prod.yaml
+    - name: k8s-dir
+      mountPath: /home/jenkins/agent/workspace/pr-tracker-deploy/k8s
       readOnly: true
   volumes:
   - name: kubeconfig
     hostPath:
       path: /etc/rancher/k3s/k3s.yaml
-  - name: prod-secrets
+  - name: k8s-dir
     hostPath:
-      path: /home/opc/project/k8s/secrets-prod.yaml
+      path: /home/opc/project/k8s
 '''
         }
     }
