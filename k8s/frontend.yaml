@@ -17,7 +17,7 @@ spec:
         image: ghcr.io/dhruv1249/pr-tracker-frontend:latest
         imagePullPolicy: Always
         ports:
-        - containerPort: 5173
+        - containerPort: 80
         env:
         - name: VITE_SERVER_ENDPOINT
           valueFrom:
@@ -34,5 +34,5 @@ spec:
     app: frontend
   ports:
   - protocol: TCP
-    port: 5173
-    targetPort: 5173
+    port: 80
+    targetPort: 80
