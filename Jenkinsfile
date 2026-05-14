@@ -21,13 +21,15 @@ spec:
       mountPath: /mnt/k8s
       readOnly: true
   volumes:
-- name: kubeconfig
-  hostPath:
-    path: /etc/rancher/k3s
-    type: Directory
-  - name: k8s-dir
-    hostPath:
-      path: /home/opc/project/k8s
+    - name: kubeconfig
+      hostPath:
+        path: /etc/rancher/k3s
+        type: Directory
+
+    - name: k8s-dir
+      hostPath:
+        path: /home/opc/project/k8s
+        type: Directory
 '''
         }
     }
