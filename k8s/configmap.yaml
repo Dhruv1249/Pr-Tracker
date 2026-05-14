@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pr-tracker-config
+data:
+  node-env: "development"
+  client-url: "http://localhost:5173"
+  vite-server-endpoint: "http://localhost:5003"
