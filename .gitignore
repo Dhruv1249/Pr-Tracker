@@ -6,3 +6,4 @@ build/
 coverage/
 *.bak
 *.txt
+problems.md
