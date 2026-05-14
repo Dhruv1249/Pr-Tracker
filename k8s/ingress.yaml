@@ -3,6 +3,8 @@ kind: Ingress
 metadata:
   name: pr-tracker-ingress
   namespace: jenkins
+  annotations:
+    traefik.ingress.kubernetes.io/service.nativelb: "true"
 
 spec:
   ingressClassName: traefik

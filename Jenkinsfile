@@ -72,7 +72,7 @@ spec:
         stage('Verify Deployment') {
             steps {
                 container('kubectl') {
-                    sh 'kubectl get pods -n default'
+                    sh 'kubectl get pods -n jenkins'
                 }
             }
         }
