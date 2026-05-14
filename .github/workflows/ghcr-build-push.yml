@@ -176,3 +176,52 @@ jobs:
           context: ./frontend
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PREFIX }}-frontend:latest
+
+  cleanup:
+    needs: [build-auth, build-backend, build-ai-agent, build-mongodb, build-service-router, build-frontend]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete old untagged images
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: 'pr-tracker-auth'
+          package-type: 'container'
+          min-versions-to-keep: 1
+          delete-only-untagged-versions: 'true'
+          token: ${{ secrets.GH_PAT_CLEANUP }}
+      - uses: actions/delete-package-versions@v5
+        with:
+          package-name: 'pr-tracker-backend'
+          package-type: 'container'
+          min-versions-to-keep: 1
+          delete-only-untagged-versions: 'true'
+          token: ${{ secrets.GH_PAT_CLEANUP }}
+      - uses: actions/delete-package-versions@v5
+        with:
+          package-name: 'pr-tracker-ai-agent'
+          package-type: 'container'
+          min-versions-to-keep: 1
+          delete-only-untagged-versions: 'true'
+          token: ${{ secrets.GH_PAT_CLEANUP }}
+      - uses: actions/delete-package-versions@v5
+        with:
+          package-name: 'pr-tracker-mongodb'
+          package-type: 'container'
+          min-versions-to-keep: 1
+          delete-only-untagged-versions: 'true'
+          token: ${{ secrets.GH_PAT_CLEANUP }}
+      - uses: actions/delete-package-versions@v5
+        with:
+          package-name: 'pr-tracker-service-router'
+          package-type: 'container'
+          min-versions-to-keep: 1
+          delete-only-untagged-versions: 'true'
+          token: ${{ secrets.GH_PAT_CLEANUP }}
+      - uses: actions/delete-package-versions@v5
+        with:
+          package-name: 'pr-tracker-frontend'
+          package-type: 'container'
+          min-versions-to-keep: 1
+          delete-only-untagged-versions: 'true'
+          token: ${{ secrets.GH_PAT_CLEANUP }}
