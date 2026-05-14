@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: ghcr.io/dhruv1249/pr-tracker-backend:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5002
+        env:
+        - name: PORT
+          value: "5002"
+        - name: NODE_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: pr-tracker-config
+              key: node-env
+        - name: PROXY_URL
+          value: "http://service-router:5003"
+        - name: WEBHOOK_URL
+          value: "http://service-router:5003/api/webhooks/github"
+        - name: GITHUB_WEBHOOK_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: pr-tracker-secrets
+              key: github-webhook-secret
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: pr-tracker-secrets
+              key: jwt-secret
+        - name: ENCRYPTION_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: pr-tracker-secrets
+              key: encryption-secret
+        - name: INTERNAL_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: pr-tracker-secrets
+              key: internal-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+spec:
+  selector:
+    app: backend
+  ports:
+  - protocol: TCP
+    port: 5002
+    targetPort: 5002

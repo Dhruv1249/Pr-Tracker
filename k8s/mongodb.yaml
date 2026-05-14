@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      containers:
+      - name: mongodb
+        image: ghcr.io/dhruv1249/pr-tracker-mongodb:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5004
+        env:
+        - name: PORT
+          value: "5004"
+        - name: NODE_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: pr-tracker-config
+              key: node-env
+        - name: MONGODB_URI
+          valueFrom:
+            secretKeyRef:
+              name: pr-tracker-secrets
+              key: mongodb-uri
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb
+spec:
+  selector:
+    app: mongodb
+  ports:
+  - protocol: TCP
+    port: 5004
+    targetPort: 5004
