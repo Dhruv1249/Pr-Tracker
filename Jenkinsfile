@@ -14,15 +14,17 @@ spec:
     - "36000"
     volumeMounts:
     - name: kubeconfig
-      mountPath: /etc/rancher/k3s/k3s.yaml
+      mountPath: /kube/k3s.yaml
+      subPath: k3s.yaml
       readOnly: true
     - name: k8s-dir
       mountPath: /mnt/k8s
       readOnly: true
   volumes:
-  - name: kubeconfig
-    hostPath:
-      path: /etc/rancher/k3s/k3s.yaml
+- name: kubeconfig
+  hostPath:
+    path: /etc/rancher/k3s
+    type: Directory
   - name: k8s-dir
     hostPath:
       path: /home/opc/project/k8s
@@ -31,10 +33,18 @@ spec:
     }
 
     environment {
-        KUBECONFIG = '/etc/rancher/k3s/k3s.yaml'
+        KUBECONFIG = '/kube/k3s.yaml'
     }
 
     stages {
+        stage('Debug Kubeconfig') {
+            steps {
+                container('kubectl') {
+                    sh 'cat /etc/rancher/k3s/k3s.yaml'
+                    sh 'kubectl config view'
+                }
+            }
+        }
         stage('Deploy to K3s') {
             steps {
                 container('kubectl') {
