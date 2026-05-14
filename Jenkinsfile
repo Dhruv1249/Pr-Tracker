@@ -16,7 +16,7 @@ spec:
       mountPath: /etc/rancher/k3s/k3s.yaml
       readOnly: true
     - name: k8s-dir
-      mountPath: /home/jenkins/agent/workspace/pr-tracker-deploy/k8s
+      mountPath: /mnt/k8s
       readOnly: true
   volumes:
   - name: kubeconfig
@@ -45,8 +45,9 @@ spec:
                 container('kubectl') {
                     script {
                         echo 'Applying Kubernetes manifests...'
+                        // We use the manifests from GitHub, but the secret from the /mnt mount
                         sh 'kubectl apply -f k8s/configmap-prod.yaml'
-                        sh 'kubectl apply -f k8s/secrets-prod.yaml'
+                        sh 'kubectl apply -f /mnt/k8s/secrets-prod.yaml'
                         sh 'kubectl apply -f k8s/auth.yaml'
                         sh 'kubectl apply -f k8s/backend.yaml'
                         sh 'kubectl apply -f k8s/ai-agent.yaml'
