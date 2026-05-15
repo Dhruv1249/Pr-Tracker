@@ -66,26 +66,57 @@ spec:
                         def sawAnyRuns = false
 
                         while (true) {
-                            def apiUrl = "https://api.github.com/repos/${repoSlug}/actions/runs?head_sha=${java.net.URLEncoder.encode(commitSha, 'UTF-8')}&per_page=100"
-                            def connection = new URL(apiUrl).openConnection()
-                            connection.requestMethod = 'GET'
-                            connection.connectTimeout = 10000
-                            connection.readTimeout = 10000
-                            connection.setRequestProperty('Accept', 'application/vnd.github+json')
-                            connection.setRequestProperty('X-GitHub-Api-Version', '2022-11-28')
-                            if (apiToken) {
-                                connection.setRequestProperty('Authorization', "Bearer ${apiToken}")
+                            def apiUrl = "https://api.github.com/repos/${repoSlug}/actions/runs?head_sha=${commitSha}&per_page=100"
+                            def responseText = apiToken ? withEnv(["GITHUB_API_TOKEN=${apiToken}", "GITHUB_API_URL=${apiUrl}"]) {
+                                sh(script: '''#!/bin/sh
+set -eu
+if command -v curl >/dev/null 2>&1; then
+    set -- -fsSL --connect-timeout 10 --max-time 30
+    set -- "$@" -H 'Accept: application/vnd.github+json'
+    set -- "$@" -H 'X-GitHub-Api-Version: 2022-11-28'
+    if [ -n "${GITHUB_API_TOKEN:-}" ]; then
+        set -- "$@" -H "Authorization: Bearer ${GITHUB_API_TOKEN}"
+    fi
+    set -- "$@" "${GITHUB_API_URL}"
+    curl "$@"
+elif command -v wget >/dev/null 2>&1; then
+    set -- -q -O - --timeout=30
+    set -- "$@" --header='Accept: application/vnd.github+json'
+    set -- "$@" --header='X-GitHub-Api-Version: 2022-11-28'
+    if [ -n "${GITHUB_API_TOKEN:-}" ]; then
+        set -- "$@" --header="Authorization: Bearer ${GITHUB_API_TOKEN}"
+    fi
+    set -- "$@" "${GITHUB_API_URL}"
+    wget "$@"
+else
+    echo "Neither curl nor wget is available in the Jenkins agent container" >&2
+    exit 1
+fi
+'''.stripIndent(), returnStdout: true).trim()
+                            } : withEnv(["GITHUB_API_URL=${apiUrl}"]) {
+                                sh(script: '''#!/bin/sh
+set -eu
+if command -v curl >/dev/null 2>&1; then
+    set -- -fsSL --connect-timeout 10 --max-time 30
+    set -- "$@" -H 'Accept: application/vnd.github+json'
+    set -- "$@" -H 'X-GitHub-Api-Version: 2022-11-28'
+    set -- "$@" "${GITHUB_API_URL}"
+    curl "$@"
+elif command -v wget >/dev/null 2>&1; then
+    set -- -q -O - --timeout=30
+    set -- "$@" --header='Accept: application/vnd.github+json'
+    set -- "$@" --header='X-GitHub-Api-Version: 2022-11-28'
+    set -- "$@" "${GITHUB_API_URL}"
+    wget "$@"
+else
+    echo "Neither curl nor wget is available in the Jenkins agent container" >&2
+    exit 1
+fi
+'''.stripIndent(), returnStdout: true).trim()
                             }
 
-                            def responseCode = connection.responseCode
-                            def responseText = ''
-                            def responseStream = responseCode >= 200 && responseCode < 300 ? connection.inputStream : connection.errorStream
-                            if (responseStream != null) {
-                                responseText = responseStream.getText('UTF-8')
-                            }
-
-                            if (responseCode < 200 || responseCode >= 300) {
-                                error "GitHub Actions API request failed for ${repoSlug}@${commitSha} (${responseCode}): ${responseText}"
+                            if (!responseText) {
+                                error "GitHub Actions API returned an empty response for ${repoSlug}@${commitSha}"
                             }
 
                             def payload = new groovy.json.JsonSlurperClassic().parseText(responseText)
