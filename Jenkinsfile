@@ -63,13 +63,32 @@ spec:
                         def discoveryTimeoutSeconds = (env.GITHUB_ACTIONS_DISCOVERY_TIMEOUT_SECONDS ?: '120') as Integer
                         def maxWaitSeconds = (env.GITHUB_ACTIONS_MAX_WAIT_SECONDS ?: '7200') as Integer
                         def startedAt = System.currentTimeMillis()
-                        def sawAnyRuns = false
 
                         while (true) {
                             def apiUrl = "https://api.github.com/repos/${repoSlug}/actions/runs?head_sha=${commitSha}&per_page=100"
-                            def responseText = apiToken ? withEnv(["GITHUB_API_TOKEN=${apiToken}", "GITHUB_API_URL=${apiUrl}"]) {
+                            def runState = apiToken ? withEnv(["GITHUB_API_TOKEN=${apiToken}", "GITHUB_API_URL=${apiUrl}"]) {
                                 sh(script: '''#!/bin/sh
 set -eu
+fetch_github_actions_state() {
+    response="$1"
+
+    if command -v jq >/dev/null 2>&1; then
+        total_runs=$(printf '%s' "$response" | jq '.workflow_runs | length')
+        active_runs=$(printf '%s' "$response" | jq '[.workflow_runs[] | select(.status != "completed")] | length')
+    else
+        total_runs=$(printf '%s' "$response" | grep -o '"status":"[^"]*"' | wc -l | tr -d ' ')
+        active_runs=$(printf '%s' "$response" | grep -o '"status":"[^"]*"' | grep -vc '"status":"completed"' || true)
+    fi
+
+    if [ "$active_runs" -gt 0 ]; then
+        printf 'active'
+    elif [ "$total_runs" -gt 0 ]; then
+        printf 'done'
+    else
+        printf 'none'
+    fi
+}
+
 if command -v curl >/dev/null 2>&1; then
     set -- -fsSL --connect-timeout 10 --max-time 30
     set -- "$@" -H 'Accept: application/vnd.github+json'
@@ -78,7 +97,7 @@ if command -v curl >/dev/null 2>&1; then
         set -- "$@" -H "Authorization: Bearer ${GITHUB_API_TOKEN}"
     fi
     set -- "$@" "${GITHUB_API_URL}"
-    curl "$@"
+    fetch_github_actions_state "$(curl "$@")"
 elif command -v wget >/dev/null 2>&1; then
     set -- -q -O - --timeout=30
     set -- "$@" --header='Accept: application/vnd.github+json'
@@ -87,7 +106,7 @@ elif command -v wget >/dev/null 2>&1; then
         set -- "$@" --header="Authorization: Bearer ${GITHUB_API_TOKEN}"
     fi
     set -- "$@" "${GITHUB_API_URL}"
-    wget "$@"
+    fetch_github_actions_state "$(wget "$@")"
 else
     echo "Neither curl nor wget is available in the Jenkins agent container" >&2
     exit 1
@@ -96,18 +115,38 @@ fi
                             } : withEnv(["GITHUB_API_URL=${apiUrl}"]) {
                                 sh(script: '''#!/bin/sh
 set -eu
+fetch_github_actions_state() {
+    response="$1"
+
+    if command -v jq >/dev/null 2>&1; then
+        total_runs=$(printf '%s' "$response" | jq '.workflow_runs | length')
+        active_runs=$(printf '%s' "$response" | jq '[.workflow_runs[] | select(.status != "completed")] | length')
+    else
+        total_runs=$(printf '%s' "$response" | grep -o '"status":"[^"]*"' | wc -l | tr -d ' ')
+        active_runs=$(printf '%s' "$response" | grep -o '"status":"[^"]*"' | grep -vc '"status":"completed"' || true)
+    fi
+
+    if [ "$active_runs" -gt 0 ]; then
+        printf 'active'
+    elif [ "$total_runs" -gt 0 ]; then
+        printf 'done'
+    else
+        printf 'none'
+    fi
+}
+
 if command -v curl >/dev/null 2>&1; then
     set -- -fsSL --connect-timeout 10 --max-time 30
     set -- "$@" -H 'Accept: application/vnd.github+json'
     set -- "$@" -H 'X-GitHub-Api-Version: 2022-11-28'
     set -- "$@" "${GITHUB_API_URL}"
-    curl "$@"
+    fetch_github_actions_state "$(curl "$@")"
 elif command -v wget >/dev/null 2>&1; then
     set -- -q -O - --timeout=30
     set -- "$@" --header='Accept: application/vnd.github+json'
     set -- "$@" --header='X-GitHub-Api-Version: 2022-11-28'
     set -- "$@" "${GITHUB_API_URL}"
-    wget "$@"
+    fetch_github_actions_state "$(wget "$@")"
 else
     echo "Neither curl nor wget is available in the Jenkins agent container" >&2
     exit 1
@@ -115,21 +154,9 @@ fi
 '''.stripIndent(), returnStdout: true).trim()
                             }
 
-                            if (!responseText) {
-                                error "GitHub Actions API returned an empty response for ${repoSlug}@${commitSha}"
-                            }
-
-                            def payload = new groovy.json.JsonSlurperClassic().parseText(responseText)
-                            def workflowRuns = payload?.workflow_runs ?: []
-                            if (workflowRuns) {
-                                sawAnyRuns = true
-                            }
-
-                            def activeRuns = workflowRuns.findAll { run -> run.status != 'completed' }
-
-                            if (activeRuns) {
-                                echo "GitHub Actions still running for ${commitSha}: ${activeRuns.collect { run -> "${run.name ?: run.workflow_id} (${run.status})" }.join(', ')}"
-                            } else if (sawAnyRuns || (System.currentTimeMillis() - startedAt) >= (discoveryTimeoutSeconds * 1000L)) {
+                            if (runState == 'active') {
+                                echo "GitHub Actions still running for ${commitSha}; waiting."
+                            } else if (runState == 'done' || (System.currentTimeMillis() - startedAt) >= (discoveryTimeoutSeconds * 1000L)) {
                                 echo "GitHub Actions are finished, skipped, or absent for ${commitSha}; continuing Jenkins."
                                 break
                             } else {
