@@ -75,10 +75,11 @@ spec:
                         // Double quotes → Groovy GString interpolation of env vars
                         echo "▶ Applying Kubernetes manifests (${env.APP_NS} namespace)…"
 
-                        // Apply secrets ONCE with the correct app namespace.
-                        // grafana-admin-secret has 'namespace: monitoring' hardcoded
-                        // in secrets-prod.yaml so kubectl ignores the -n flag for it.
-                        sh "kubectl apply -f /mnt/k8s/secrets-prod.yaml -n ${env.APP_NS}"
+                        // Apply secrets — no -n flag needed because both objects in
+                        // secrets-prod.yaml have their namespace explicitly declared:
+                        //   pr-tracker-secrets  → namespace: jenkins
+                        //   grafana-admin-secret → namespace: monitoring
+                        sh 'kubectl apply -f /mnt/k8s/secrets-prod.yaml'
 
                         sh "kubectl apply -f k8s/configmap-prod.yaml   -n ${env.APP_NS}"
                         sh "kubectl apply -f k8s/auth.yaml             -n ${env.APP_NS}"
