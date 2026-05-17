@@ -33,6 +33,11 @@ spec:
             configMapKeyRef:
               name: pr-tracker-config
               key: client-url
+        - name: GATEWAY_URL
+          valueFrom:
+            configMapKeyRef:
+              name: pr-tracker-config
+              key: client-url
         - name: MONGO_URI
           valueFrom:
             secretKeyRef:

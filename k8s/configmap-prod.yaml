@@ -4,5 +4,5 @@ metadata:
   name: pr-tracker-config
 data:
   node-env: "production"
-  client-url: "http://92.4.68.154"
-  vite-server-endpoint: "http://92.4.68.154"
+  client-url: "https://pr-tracker.dev"
+  vite-server-endpoint: "https://pr-tracker.dev"

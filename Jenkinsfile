@@ -44,6 +44,10 @@ spec:
         }
     }
 
+    triggers {
+        pollSCM('H/2 * * * *')
+    }
+
     environment {
         KUBECONFIG    = '/kube/k3s.yaml'
         APP_NS        = 'jenkins'
@@ -89,10 +93,9 @@ spec:
             }
         }
 
-        // ─── 3. Deploy / upgrade observability stack ─────────────────────────
-        stage('Deploy Monitoring Stack') {
+        // ─── 3a. Apply monitoring K8s manifests ──────────────────────────────
+        stage('Apply Monitoring Manifests') {
             steps {
-                // kubectl sub-step: apply CRDs and K8s manifests
                 container('kubectl') {
                     script {
                         echo "▶ Ensuring ${env.MONITORING_NS} namespace exists…"
@@ -112,8 +115,12 @@ spec:
                         sh 'kubectl apply -f k8s/monitoring/grafana-dashboard-gateway.yaml'
                     }
                 }
+            }
+        }
 
-                // helm sub-step: runs in the helm container which has helm + kubectl
+        // ─── 3b. Helm upgrade (needs helm binary — runs in helm container) ────
+        stage('Helm Upgrade Monitoring') {
+            steps {
                 container('helm') {
                     script {
                         echo "▶ Upgrading ${env.HELM_RELEASE} via Helm…"
@@ -191,10 +198,10 @@ spec:
 
     post {
         success {
-            echo "✅ Pipeline complete — app (${env.APP_NS}) + monitoring (${env.MONITORING_NS}) are live."
+            echo "Pipeline complete — app (${env.APP_NS}) + monitoring (${env.MONITORING_NS}) are live."
         }
         failure {
-            echo "❌ Pipeline failed. Debug with: kubectl get events -n ${env.APP_NS} --sort-by=.lastTimestamp"
+            echo "Pipeline failed. Debug with: kubectl get events -n ${env.APP_NS} --sort-by=.lastTimestamp"
         }
     }
 }

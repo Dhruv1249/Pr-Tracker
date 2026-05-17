@@ -100,7 +100,9 @@ exports.githubCallback = async (req, res) => {
 
     // redirect frontend – prevent caching to avoid 304 on OAuth callback
     res.set("Cache-Control", "no-store, no-cache, must-revalidate");
-    res.redirect(`${process.env.GATEWAY_URL}/api/auth/success?token=${jwtToken}`);
+    const gatewayBase = (process.env.GATEWAY_URL || "").replace(/\/$/, "");
+    const successPath = `/api/auth/success?token=${encodeURIComponent(jwtToken)}`;
+    res.redirect(gatewayBase ? `${gatewayBase}${successPath}` : successPath);
 
 
   } catch (error) {

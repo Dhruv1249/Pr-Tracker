@@ -1,15 +1,17 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: pr-tracker-ingress
+  name: pr-tracker-api-ingress
   namespace: jenkins
   annotations:
     traefik.ingress.kubernetes.io/service.nativelb: "true"
+    traefik.ingress.kubernetes.io/router.priority: "100"
 
 spec:
   ingressClassName: traefik
   rules:
-    - http:
+    - host: pr-tracker.dev
+      http:
         paths:
           - path: /api
             pathType: Prefix
@@ -18,6 +20,27 @@ spec:
                 name: service-router
                 port:
                   number: 5003
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pr-tracker-web-ingress
+  namespace: jenkins
+  annotations:
+    traefik.ingress.kubernetes.io/service.nativelb: "true"
+    traefik.ingress.kubernetes.io/router.priority: "1"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - pr-tracker.dev
+      secretName: pr-tracker-tls
+  rules:
+    - host: pr-tracker.dev
+      http:
+        paths:
           - path: /
             pathType: Prefix
             backend:
