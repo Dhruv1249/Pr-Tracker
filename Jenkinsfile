@@ -107,6 +107,9 @@ spec:
                     script {
                         echo "▶ Upgrading ${env.HELM_RELEASE} via Helm (installs ServiceMonitor CRD)…"
                         sh """
+                            # Silence kubeconfig permission warnings (read-only mount, can't chmod)
+                            export HELM_KUBEAPISERVER=\$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')
+
                             helm repo add prometheus-community \\
                               https://prometheus-community.github.io/helm-charts \\
                               2>/dev/null || true
@@ -118,9 +121,9 @@ spec:
                               --create-namespace \\
                               -f k8s/monitoring/prometheus-stack-values.yaml \\
                               --wait \\
-                              --timeout 8m \\
-                              --atomic
+                              --timeout 20m
                         """
+                       
                     }
                 }
             }
