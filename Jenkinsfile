@@ -117,27 +117,27 @@ spec:
                             (
                               while true; do
                                 echo ""
-                                echo "=== [watcher] helm status at $(date '+%H:%M:%S') ==="
-                                helm status ${env.HELM_RELEASE} \
-                                  --namespace ${env.MONITORING_NS} \
+                                echo "=== [watcher] helm status at \$(date '+%H:%M:%S') ==="
+                                helm status ${env.HELM_RELEASE} \\
+                                  --namespace ${env.MONITORING_NS} \\
                                   --show-resources 2>/dev/null || true
                                 sleep 30
                               done
                             ) &
-                            WATCHER_PID=$!
+                            WATCHER_PID=\$!
 
                             # Run Helm with --debug so every resource apply is visible
-                            helm upgrade --install ${env.HELM_RELEASE} \
-                              prometheus-community/kube-prometheus-stack \
-                              --namespace ${env.MONITORING_NS} \
-                              --create-namespace \
-                              -f k8s/monitoring/prometheus-stack-values.yaml \
-                              --wait \
-                              --timeout 20m \
+                            helm upgrade --install ${env.HELM_RELEASE} \\
+                              prometheus-community/kube-prometheus-stack \\
+                              --namespace ${env.MONITORING_NS} \\
+                              --create-namespace \\
+                              -f k8s/monitoring/prometheus-stack-values.yaml \\
+                              --wait \\
+                              --timeout 20m \\
                               --debug 2>&1
 
                             # Kill the watcher once Helm finishes
-                            kill $WATCHER_PID 2>/dev/null || true
+                            kill \$WATCHER_PID 2>/dev/null || true
                         """
                     }
                 }
