@@ -45,7 +45,7 @@ spec:
     }
 
     triggers {
-        pollSCM('H/2 * * * *')
+        pollSCM('H/1 * * * *')
     }
 
     environment {
@@ -202,7 +202,7 @@ spec:
                         ).trim()
                         echo "▶ Health-checking pod: ${pod}"
                         def status = sh(
-                            script: "kubectl exec -n ${env.APP_NS} ${pod} -- wget -qO- http://localhost:5003/api/health",
+                            script: "kubectl exec -n ${env.APP_NS} ${pod} -- node -e 'fetch(\"http://localhost:5003/api/health\").then(r => r.text()).then(console.log)'",
                             returnStdout: true
                         ).trim()
                         if (!status.contains('"status":"ok"')) {
