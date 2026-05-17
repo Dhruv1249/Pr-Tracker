@@ -75,6 +75,12 @@ spec:
                         // Double quotes → Groovy GString interpolation of env vars
                         echo "▶ Applying Kubernetes manifests (${env.APP_NS} namespace)…"
 
+                        // Ensure both namespaces exist BEFORE applying secrets.
+                        // secrets-prod.yaml targets two namespaces (jenkins + monitoring)
+                        // so both must exist or kubectl will throw NotFound.
+                        sh "kubectl get namespace ${env.APP_NS}       2>/dev/null || kubectl create namespace ${env.APP_NS}"
+                        sh "kubectl get namespace ${env.MONITORING_NS} 2>/dev/null || kubectl create namespace ${env.MONITORING_NS}"
+
                         // Apply secrets — no -n flag needed because both objects in
                         // secrets-prod.yaml have their namespace explicitly declared:
                         //   pr-tracker-secrets  → namespace: jenkins
@@ -99,12 +105,8 @@ spec:
             steps {
                 container('kubectl') {
                     script {
-                        echo "▶ Ensuring ${env.MONITORING_NS} namespace exists…"
-                        sh "kubectl get namespace ${env.MONITORING_NS} 2>/dev/null || kubectl create namespace ${env.MONITORING_NS}"
-
-                        // secrets-prod.yaml already applied in stage 2 above.
-                        // grafana-admin-secret has explicit namespace: monitoring,
-                        // so it landed in the right place already.
+                        // Both namespaces (jenkins + monitoring) already created in stage 2.
+                        // Just apply the monitoring manifests.
 
                         echo '▶ Applying ServiceMonitor…'
                         sh 'kubectl apply -f k8s/monitoring/servicemonitor.yaml'
