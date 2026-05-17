@@ -63,15 +63,9 @@ grafana:
       memory: 256Mi
       cpu: 300m
 
-  # Pre-provision the Prometheus datasource automatically
-  additionalDataSources:
-    - name: Prometheus
-      type: prometheus
-      url: http://kube-prometheus-stack-prometheus:9090
-      access: proxy
-      isDefault: true
-      jsonData:
-        timeInterval: 15s
+  # NOTE: kube-prometheus-stack auto-provisions the Prometheus datasource
+  # via the sidecar. Do NOT add an additionalDataSource named 'Prometheus'
+  # — it will conflict and crash Grafana on startup.
 
 # ─────────────────────────────────────────────
 # PROMETHEUS
