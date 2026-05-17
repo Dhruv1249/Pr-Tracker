@@ -5,8 +5,12 @@ metadata:
   namespace: monitoring
   annotations:
     traefik.ingress.kubernetes.io/router.priority: "50"
+    traefik.ingress.kubernetes.io/service.nativelb: "true"
 spec:
   ingressClassName: traefik
+  tls:
+    - hosts:
+        - pr-tracker.dev
   rules:
     - host: pr-tracker.dev
       http:
