@@ -100,33 +100,12 @@ spec:
             }
         }
 
-        // ─── 3a. Apply monitoring K8s manifests ──────────────────────────────
-        stage('Apply Monitoring Manifests') {
-            steps {
-                container('kubectl') {
-                    script {
-                        // Both namespaces (jenkins + monitoring) already created in stage 2.
-                        // Just apply the monitoring manifests.
-
-                        echo '▶ Applying ServiceMonitor…'
-                        sh 'kubectl apply -f k8s/monitoring/servicemonitor.yaml'
-
-                        echo '▶ Applying Grafana Ingress + StripPrefix middleware…'
-                        sh 'kubectl apply -f k8s/monitoring/grafana-ingress.yaml'
-
-                        echo '▶ Applying auto-provisioned Grafana dashboard ConfigMap…'
-                        sh 'kubectl apply -f k8s/monitoring/grafana-dashboard-gateway.yaml'
-                    }
-                }
-            }
-        }
-
-        // ─── 3b. Helm upgrade (needs helm binary — runs in helm container) ────
+        // ─── 3a. Helm upgrade — installs kube-prometheus-stack CRDs first ────
         stage('Helm Upgrade Monitoring') {
             steps {
                 container('helm') {
                     script {
-                        echo "▶ Upgrading ${env.HELM_RELEASE} via Helm…"
+                        echo "▶ Upgrading ${env.HELM_RELEASE} via Helm (installs ServiceMonitor CRD)…"
                         sh """
                             helm repo add prometheus-community \\
                               https://prometheus-community.github.io/helm-charts \\
@@ -142,6 +121,25 @@ spec:
                               --timeout 8m \\
                               --atomic
                         """
+                    }
+                }
+            }
+        }
+
+        // ─── 3b. Apply monitoring manifests — CRDs now exist from 3a ─────────
+        stage('Apply Monitoring Manifests') {
+            steps {
+                container('kubectl') {
+                    script {
+                        // ServiceMonitor CRD is now installed by Helm above.
+                        echo '▶ Applying ServiceMonitor…'
+                        sh 'kubectl apply -f k8s/monitoring/servicemonitor.yaml'
+
+                        echo '▶ Applying Grafana Ingress + StripPrefix middleware…'
+                        sh 'kubectl apply -f k8s/monitoring/grafana-ingress.yaml'
+
+                        echo '▶ Applying auto-provisioned Grafana dashboard ConfigMap…'
+                        sh 'kubectl apply -f k8s/monitoring/grafana-dashboard-gateway.yaml'
                     }
                 }
             }
