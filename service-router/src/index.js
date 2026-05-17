@@ -9,11 +9,16 @@ const coreRoutes = require("./routes/core.routes");
 const aiRoutes = require("./routes/ai.routes");
 const dbRoutes = require("./routes/db.routes");
 const healthRoutes = require("./routes/health.routes");
+const { router: metricsRouter, metricsMiddleware } = require("./routes/metrics.routes");
 const cookieParser = require("cookie-parser");
 
 const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT;
+
+// ── Prometheus metrics — mounted BEFORE auth/rate-limit so it's always scrapeable
+app.use(metricsRouter);
+app.use(metricsMiddleware);
 
 app.use(cookieParser())
 

@@ -1,0 +1,33 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: service-router-metrics
+  namespace: monitoring            # must live in Prometheus' namespace
+  labels:
+    release: kube-prometheus-stack # must match chart's serviceMonitorSelector
+spec:
+  # Watch the 'jenkins' namespace where service-router runs
+  namespaceSelector:
+    matchNames:
+      - jenkins
+  # Select the service-router Kubernetes Service by label
+  selector:
+    matchLabels:
+      app: service-router
+  endpoints:
+    - port: http                   # named port defined in service-router.yaml
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
+      scheme: http
+      # Preserve labels coming from the target (e.g., pod labels)
+      honorLabels: false
+      # Relabel 'namespace' label to 'k8s_namespace' to avoid collisions
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: k8s_namespace
+      metricRelabelings:
+        # Drop high-cardinality histograms we don't use (reduces TSDB size)
+        - sourceLabels: [__name__]
+          regex: "go_gc_duration_seconds.*"
+          action: drop

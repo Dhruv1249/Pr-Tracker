@@ -1,0 +1,179 @@
+# ============================================================
+# kube-prometheus-stack Helm values
+# PR Tracker — Production-ready observability stack
+# Deploy: bash k8s/monitoring/deploy-monitoring.sh
+# ============================================================
+
+# ─────────────────────────────────────────────
+# GRAFANA
+# ─────────────────────────────────────────────
+grafana:
+  enabled: true
+
+  # Admin password is injected from the grafana-secret K8s Secret,
+  # NOT hardcoded here. Create it once with deploy-monitoring.sh.
+  admin:
+    existingSecret: grafana-admin-secret
+    userKey: admin-user
+    passwordKey: admin-password
+
+  grafana.ini:
+    server:
+      # Serve Grafana at /grafana subpath via Traefik
+      domain: "92.4.68.154"
+      root_url: "%(protocol)s://%(domain)s/grafana"
+      serve_from_sub_path: true
+    # Disable telemetry / analytics
+    analytics:
+      check_for_updates: false
+      reporting_enabled: false
+    # Security hardening
+    security:
+      disable_gravatar: true
+      cookie_secure: false          # set true when TLS is enabled
+      cookie_samesite: lax
+
+  # Sidecar: automatically imports dashboard ConfigMaps labelled
+  # grafana_dashboard=1 from ANY namespace
+  sidecar:
+    dashboards:
+      enabled: true
+      searchNamespace: ALL
+      label: grafana_dashboard
+      labelValue: "1"
+      folderAnnotation: grafana_folder
+      provider:
+        foldersFromFilesStructure: true
+    datasources:
+      enabled: true
+      searchNamespace: ALL
+
+  # Persist Grafana state (dashboards, preferences, alert rules)
+  persistence:
+    enabled: true
+    size: 2Gi
+    storageClassName: ""     # uses cluster default StorageClass
+
+  # Resource guardrails for Grafana UI pod
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 100m
+    limits:
+      memory: 256Mi
+      cpu: 300m
+
+  # Pre-provision the Prometheus datasource automatically
+  additionalDataSources:
+    - name: Prometheus
+      type: prometheus
+      url: http://kube-prometheus-stack-prometheus:9090
+      access: proxy
+      isDefault: true
+      jsonData:
+        timeInterval: 15s
+
+# ─────────────────────────────────────────────
+# PROMETHEUS
+# ─────────────────────────────────────────────
+prometheus:
+  prometheusSpec:
+    # Scrape ServiceMonitors from ALL namespaces (jenkins, monitoring, …)
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelector: {}
+    serviceMonitorNamespaceSelector: {}
+
+    # Also pick up PodMonitors from every namespace
+    podMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelector: {}
+    podMonitorNamespaceSelector: {}
+
+    # Retain raw metrics for 15 days
+    retention: 15d
+
+    # Persist TSDB to survive pod restarts
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+
+    # Tuned for a 15 Gi RAM single-node cluster
+    resources:
+      requests:
+        memory: 512Mi
+        cpu: 250m
+      limits:
+        memory: 1500Mi
+        cpu: 700m
+
+    # Evaluate rules every 15 s (matches scrape interval)
+    evaluationInterval: 15s
+    scrapeInterval: 15s
+
+# ─────────────────────────────────────────────
+# ALERTMANAGER
+# ─────────────────────────────────────────────
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    resources:
+      requests:
+        memory: 64Mi
+        cpu: 50m
+      limits:
+        memory: 128Mi
+        cpu: 100m
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by: ["alertname", "namespace"]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      receiver: "null"          # swap for 'slack' or 'email' when ready
+    receivers:
+      - name: "null"
+
+# ─────────────────────────────────────────────
+# NODE EXPORTER  (host CPU / RAM / disk / net)
+# ─────────────────────────────────────────────
+nodeExporter:
+  enabled: true
+
+# ─────────────────────────────────────────────
+# KUBE-STATE-METRICS  (pod/deploy/hpa state)
+# ─────────────────────────────────────────────
+kubeStateMetrics:
+  enabled: true
+
+# ─────────────────────────────────────────────
+# DEFAULT RULES — keep all standard K8s alerts
+# ─────────────────────────────────────────────
+defaultRules:
+  create: true
+  rules:
+    alertmanager: true
+    etcd: false          # K3s doesn't expose etcd
+    configReloaders: true
+    general: true
+    k8s: true
+    kubeApiserverAvailability: true
+    kubeApiserverBurnrate: true
+    kubeApiserverHistogram: true
+    kubeApiserverSlos: true
+    kubeControllerManager: false  # hidden in K3s
+    kubelet: true
+    kubeProxy: false              # hidden in K3s
+    kubeSchedulerAlerting: false  # hidden in K3s
+    kubeSchedulerRecording: false
+    kubeStateMetrics: true
+    network: true
+    node: true
+    nodeExporterAlerting: true
+    nodeExporterRecording: true
+    prometheus: true
+    prometheusOperator: true

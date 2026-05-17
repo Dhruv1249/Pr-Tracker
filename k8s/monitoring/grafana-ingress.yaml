@@ -1,0 +1,34 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana-ingress
+  namespace: monitoring
+  annotations:
+    traefik.ingress.kubernetes.io/service.nativelb: "true"
+    # Strip /grafana prefix before forwarding to Grafana pod.
+    # Grafana's serve_from_sub_path=true then re-adds it internally,
+    # so every asset request (/grafana/public/...) works correctly.
+    traefik.ingress.kubernetes.io/router.middlewares: monitoring-grafana-strip@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - http:
+        paths:
+          - path: /grafana
+            pathType: Prefix
+            backend:
+              service:
+                name: kube-prometheus-stack-grafana
+                port:
+                  number: 80
+---
+# Traefik StripPrefix middleware — removes /grafana before proxying
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: grafana-strip
+  namespace: monitoring
+spec:
+  stripPrefix:
+    prefixes:
+      - /grafana

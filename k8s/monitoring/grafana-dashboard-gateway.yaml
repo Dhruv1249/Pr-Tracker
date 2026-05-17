@@ -1,0 +1,142 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pr-tracker-gateway-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"           # picked up by Grafana sidecar automatically
+  annotations:
+    grafana_folder: "PR Tracker"     # displayed under this folder in Grafana UI
+data:
+  pr-tracker-gateway.json: |
+    {
+      "title": "PR Tracker — API Gateway",
+      "uid": "pr-tracker-gateway",
+      "schemaVersion": 38,
+      "version": 1,
+      "refresh": "15s",
+      "time": { "from": "now-1h", "to": "now" },
+      "templating": { "list": [] },
+      "annotations": { "list": [] },
+      "panels": [
+        {
+          "id": 1,
+          "type": "timeseries",
+          "title": "Request Rate (req/s)",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total{namespace=\"jenkins\",job=~\".*service-router.*\"}[2m])) by (route, method)",
+              "legendFormat": "{{method}} {{route}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "custom": { "lineWidth": 2, "fillOpacity": 10 }
+            }
+          }
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "P99 Latency (ms)",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_ms_bucket{namespace=\"jenkins\",job=~\".*service-router.*\"}[2m])) by (le, route))",
+              "legendFormat": "p99 {{route}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ms",
+              "custom": { "lineWidth": 2, "fillOpacity": 10 }
+            }
+          }
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "Error Rate (5xx / total)",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total{status_code=~\"5..\",namespace=\"jenkins\",job=~\".*service-router.*\"}[2m])) / sum(rate(http_requests_total{namespace=\"jenkins\",job=~\".*service-router.*\"}[2m]))",
+              "legendFormat": "error ratio",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 0.01 },
+                  { "color": "red",    "value": 0.05 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 4,
+          "type": "gauge",
+          "title": "Node.js Heap Used",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "targets": [
+            {
+              "expr": "nodejs_heap_size_used_bytes{namespace=\"jenkins\",job=~\".*service-router.*\"}",
+              "legendFormat": "heap used",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green",  "value": null },
+                  { "color": "yellow", "value": 200000000 },
+                  { "color": "red",    "value": 400000000 }
+                ]
+              },
+              "mappings": []
+            }
+          }
+        },
+        {
+          "id": 5,
+          "type": "stat",
+          "title": "Total Requests (last 1h)",
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 16 },
+          "targets": [
+            {
+              "expr": "sum(increase(http_requests_total{namespace=\"jenkins\",job=~\".*service-router.*\"}[1h]))",
+              "legendFormat": "total",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short" } }
+        },
+        {
+          "id": 6,
+          "type": "stat",
+          "title": "Active HTTP Connections",
+          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 16 },
+          "targets": [
+            {
+              "expr": "nodejs_active_handles_total{namespace=\"jenkins\",job=~\".*service-router.*\"}",
+              "legendFormat": "handles",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short" } }
+        }
+      ]
+    }
