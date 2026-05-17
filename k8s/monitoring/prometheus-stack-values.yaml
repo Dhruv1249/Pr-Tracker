@@ -9,6 +9,9 @@
 # ─────────────────────────────────────────────
 grafana:
   enabled: true
+  service:
+    type: NodePort
+    nodePort: 32001
 
   # Admin password is injected from the grafana-secret K8s Secret,
   # NOT hardcoded here. Create it once with deploy-monitoring.sh.
@@ -20,7 +23,7 @@ grafana:
   grafana.ini:
     server:
       # Serve Grafana at /grafana subpath via Traefik
-      domain: "92.4.68.154"
+      domain: "pr-tracker.dev"
       root_url: "%(protocol)s://%(domain)s/grafana"
       serve_from_sub_path: true
     # Disable telemetry / analytics
