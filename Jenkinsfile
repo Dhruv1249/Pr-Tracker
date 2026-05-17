@@ -107,23 +107,39 @@ spec:
                     script {
                         echo "▶ Upgrading ${env.HELM_RELEASE} via Helm (installs ServiceMonitor CRD)…"
                         sh """
-                            # Silence kubeconfig permission warnings (read-only mount, can't chmod)
-                            export HELM_KUBEAPISERVER=\$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')
-
                             helm repo add prometheus-community \\
                               https://prometheus-community.github.io/helm-charts \\
                               2>/dev/null || true
                             helm repo update
 
+                            # Background watcher: prints pod status every 30s so you can
+                            # see image pulls / container starts in the Jenkins console.
+                            (
+                              while true; do
+                                echo ""
+                                echo "=== [watcher] pods in ${env.MONITORING_NS} at \$(date '+%H:%M:%S') ==="
+                                kubectl get pods -n ${env.MONITORING_NS} 2>/dev/null || true
+                                echo "=== [watcher] events (last 5) ==="
+                                kubectl get events -n ${env.MONITORING_NS} \\
+                                  --sort-by='.lastTimestamp' 2>/dev/null | tail -5 || true
+                                sleep 30
+                              done
+                            ) &
+                            WATCHER_PID=\$!
+
+                            # Run Helm with --debug so every resource apply is visible
                             helm upgrade --install ${env.HELM_RELEASE} \\
                               prometheus-community/kube-prometheus-stack \\
                               --namespace ${env.MONITORING_NS} \\
                               --create-namespace \\
                               -f k8s/monitoring/prometheus-stack-values.yaml \\
                               --wait \\
-                              --timeout 20m
+                              --timeout 20m \\
+                              --debug 2>&1
+
+                            # Kill the watcher once Helm finishes
+                            kill \$WATCHER_PID 2>/dev/null || true
                         """
-                       
                     }
                 }
             }
