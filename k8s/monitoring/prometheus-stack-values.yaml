@@ -22,10 +22,10 @@ grafana:
 
   grafana.ini:
     server:
-      # Serve Grafana at /grafana subpath via Traefik
-      domain: "pr-tracker.dev"
-      root_url: "%(protocol)s://%(domain)s/grafana"
-      serve_from_sub_path: true
+      # Serve Grafana on its own subdomain
+      domain: "grafana.pr-tracker.dev"
+      root_url: "https://%(domain)s/"
+      serve_from_sub_path: false
     # Disable telemetry / analytics
     analytics:
       check_for_updates: false
@@ -33,7 +33,7 @@ grafana:
     # Security hardening
     security:
       disable_gravatar: true
-      cookie_secure: false          # set true when TLS is enabled
+      cookie_secure: true
       cookie_samesite: lax
 
   # Sidecar: automatically imports dashboard ConfigMaps labelled

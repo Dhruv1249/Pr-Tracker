@@ -97,6 +97,9 @@ info "kube-prometheus-stack deployed."
 echo ""
 echo "─── Step 4 — Applying manifests ──────────────────────────────"
 
+kubectl apply -f k8s/monitoring/certificate.yaml
+info "Grafana Certificate applied."
+
 kubectl apply -f k8s/monitoring/servicemonitor.yaml
 info "ServiceMonitor applied."
 
