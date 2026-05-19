@@ -16,8 +16,17 @@ function auth(req, res, next) {
     console.log(`[auth] req.method: ${req.method}, req.originalUrl: ${req.originalUrl}`);
 
     // ✅ Internal service-to-service calls via shared secret
-    const hasInternalSecret = INTERNAL_SECRET && req.headers["x-internal-secret"] === INTERNAL_SECRET;
-    
+    const authHeader = (req.headers['authorization'] || '').toString();
+    let hasInternalSecret = false;
+    if (INTERNAL_SECRET) {
+        if (req.headers['x-internal-secret'] === INTERNAL_SECRET) {
+            hasInternalSecret = true;
+        } else if (authHeader.toLowerCase().startsWith('bearer ') && authHeader.slice(7) === INTERNAL_SECRET) {
+            // Support Prometheus bearerTokenSecret which sends Authorization: Bearer <token>
+            hasInternalSecret = true;
+        }
+    }
+
     if (hasInternalSecret) {
         // Trusted internal services can bypass auth and provide their own identity headers
         return next();

@@ -22,10 +22,21 @@ spec:
       scheme: http
       # Preserve labels coming from the target (e.g., pod labels)
       honorLabels: false
-      # Relabel 'namespace' label to 'k8s_namespace' to avoid collisions
+      # Force Prometheus to scrape the Service DNS (ClusterIP) instead of
+      # the pod IPs. This works around clusters where pod IP routing is
+      # unreliable. Replace __address__ with the service FQDN:port.
       relabelings:
-        - sourceLabels: [__meta_kubernetes_namespace]
+        - action: replace
+          targetLabel: __address__
+          replacement: service-router.jenkins.svc.cluster.local:5003
+        - action: replace
+          sourceLabels: [__meta_kubernetes_namespace]
           targetLabel: k8s_namespace
+      # Use a bearer token stored in monitoring/service-router-bearer to
+      # authenticate scrapes if the target requires an Authorization header.
+      bearerTokenSecret:
+        name: service-router-bearer
+        key: token
       metricRelabelings:
         # Drop high-cardinality histograms we don't use (reduces TSDB size)
         - sourceLabels: [__name__]
